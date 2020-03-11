@@ -1,0 +1,11 @@
+File rilevanti per sistemare la mesh
+
+Lato R (cartella R)
+mesh.R (creazione mesh nei vari casi e definizione delle classi lato R)
+femobjects.R (creazione oggetto fembasis che poi viene passato al c++)
+smoothingcpp.R (chiamata delle funzioni c++)
+
+Lato c++
+mesh.h (varie classi per gestire le mesh nel codice c++)
+mesh_imp.h (implementazione delle classi: qua c'è anche il constructor da R)
+fdapde.cpp (qui vengono usate le classi quando si usa la libreria)
