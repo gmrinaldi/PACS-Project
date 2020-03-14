@@ -374,7 +374,7 @@ set.seed(5847947)
 nodesLocations=mesh$nodes
 
 # Exact data - Locations at nodes
-nnodes = mesh$nnodes
+nnodes = nrow(mesh$nodes)
 a1 = rnorm(1,mean = 1, sd = 1)
 a2 = rnorm(1,mean = 1, sd = 1)
 a3 = rnorm(1,mean = 1, sd = 1)
@@ -565,7 +565,7 @@ nodesLocations=sphere3D$nodes
 set.seed(5847947)
   
   # Exact test function
-nnodes = sphere3D$nnodes
+nnodes = nrow(sphere3D$nodes)
 a1 = rnorm(1,mean = 1, sd = 1)
 a2 = rnorm(1,mean = 1, sd = 1)
 a3 = rnorm(1,mean = 1, sd = 1)

@@ -32,20 +32,20 @@
 #' ## Plot the FEM function
 #' plot(FEMfunction)
 
-plot.FEM = function(FEMobject, num_refinements = NULL, ...)
+plot.FEM <- function(FEMobject, num_refinements = NULL, ...)
 {
-if(class(FEMobject$FEMbasis$mesh)=="mesh.2D"){
-  if(FEMobject$FEMbasis$order == 1)
-  {
-    R_plot.ORD1.FEM(FEMobject, ...)
-  }else{
-    R_plot.ORDN.FEM(FEMobject, num_refinements, ...)
-  }
-}else if(class(FEMobject$FEMbasis$mesh)=="mesh.2.5D"){
-	R_plot_manifold(FEMobject,...)
-}else if(class(FEMobject$FEMbasis$mesh)=="mesh.3D"){
-	R_plot_volume(FEMobject,...)
-}
+   if(class(FEMobject$FEMbasis$mesh)=="mesh.2D"){
+      if(FEMobject$FEMbasis$order == 1)
+      {
+         R_plot.ORD1.FEM(FEMobject, ...)
+      }else{
+         R_plot.ORDN.FEM(FEMobject, num_refinements, ...)
+      }
+   }else if(class(FEMobject$FEMbasis$mesh)=="mesh.2.5D"){
+      R_plot_manifold(FEMobject,...)
+   }else if(class(FEMobject$FEMbasis$mesh)=="mesh.3D"){
+      R_plot_volume(FEMobject,...)
+   }
 }
 
 
@@ -71,11 +71,11 @@ if(class(FEMobject$FEMbasis$mesh)=="mesh.2D"){
 #' plot(mesh)
 plot.mesh.2D<-function(mesh, ...)
 {
-  plot(mesh$nodes, xlab="", ylab="", xaxt="n", yaxt="n", bty="n", ...)
-  segments(mesh$nodes[mesh$edges[,1],1], mesh$nodes[mesh$edges[,1],2],
-           mesh$nodes[mesh$edges[,2],1], mesh$nodes[mesh$edges[,2],2], ...)
-  segments(mesh$nodes[mesh$segments[,1],1], mesh$nodes[mesh$segments[,1],2],
-           mesh$nodes[mesh$segments[,2],1], mesh$nodes[mesh$segments[,2],2], col="red", ...)
+   plot(mesh$nodes, xlab="", ylab="", xaxt="n", yaxt="n", bty="n", ...)
+   segments(mesh$nodes[mesh$edges[,1],1], mesh$nodes[mesh$edges[,1],2],
+            mesh$nodes[mesh$edges[,2],1], mesh$nodes[mesh$edges[,2],2], ...)
+   segments(mesh$nodes[mesh$segments[,1],1], mesh$nodes[mesh$segments[,1],2],
+            mesh$nodes[mesh$segments[,2],1], mesh$nodes[mesh$segments[,2],2], col="red", ...)
 }
 #' Plot a mesh.2.5D object
 #'
@@ -98,21 +98,21 @@ plot.mesh.2D<-function(mesh, ...)
 
 
 plot.mesh.2.5D<-function(mesh,...){
-
-  nodes <- mesh$nodes
-  edges <- as.vector(t(mesh$edges))
-
-  open3d()
-  axes3d()
-  rgl.pop("lights")
-  light3d(specular="black")
-
-  rgl.points(nodes[,1], nodes[,2], nodes[,3], col="black", ...)
-  rgl.lines(nodes[edges,1], nodes[edges,2], nodes[edges,3], col="black",...)
-
-  aspect3d("iso")
-  rgl.viewpoint(0,-45)
-
+   
+   nodes <- mesh$nodes
+   edges <- as.vector(t(mesh$edges))
+   
+   open3d()
+   axes3d()
+   rgl.pop("lights")
+   light3d(specular="black")
+   
+   rgl.points(nodes[,1], nodes[,2], nodes[,3], col="black", ...)
+   rgl.lines(nodes[edges,1], nodes[edges,2], nodes[edges,3], col="black",...)
+   
+   aspect3d("iso")
+   rgl.viewpoint(0,-45)
+   
 }
 
 #' Plot a mesh.3D object
@@ -134,433 +134,325 @@ plot.mesh.2.5D<-function(mesh,...){
 
 
 plot.mesh.3D<-function(mesh,...){
-
-  nodes < -mesh$nodes
-  faces <- as.vector(t(mesh$faces))
-
-  open3d()
-  axes3d()
-  rgl.pop("lights")
-  light3d(specular="black")
-
-  rgl.triangles(nodes[faces,1],nodes[faces,2],nodes[faces,3],col="white",...)
-
-  aspect3d("iso")
-  rgl.viewpoint(0,-45)
-
-}
-
-
- R_plot.ORD1.FEM <- function(FEM, ...) {
-
-   nodes <- FEM$FEMbasis$mesh$nodes
-   triangles <- as.vector(t(FEM$FEMbasis$mesh$triangles))
-
-   heat <- heat.colors(100)
-   # How many plots are needed?
-   nplots <- ncol(FEM$coeff)
-
-   for (i in 1:nplots) {
-
-     if (i > 1)
-        readline("Press any key for the next plot...")
-
-     open3d()
-     axes3d()
-
-     z <- FEM$coeff[triangles,i]
-     rgl.triangles(nodes[triangles,1], nodes[triangles,2], z,
-                   color = heat[round(99*(z-min(z))/diff(range(z)))+1],...)
-
-     aspect3d(2,2,1)
-     rgl.viewpoint(0,-45)
-   }
- }
-
- R_plot.ORDN.FEM <- function(FEM, num_refinements=10, ...){
-   # num_refinements sets the number of subdivisions on each triangle edge to be applied for refinement
-
-   mesh <- FEM$FEMbasis$mesh
-   num_elements <- nrow(mesh$triangles)
-
-   # For the reference triangles we construct a regular mesh
-   x <- seq(from = 0, to = 1, length.out = num_refinements+1)
-   points_ref <- expand.grid(x,x)
-   points_ref <- points_ref[rowSums(points_ref)<=1,]
-
-   reference_mesh <- create.mesh.2D(nodes = points_ref, order = 1)
-   num_points <- nrow(reference_mesh$nodes)
    
-   points <- lapply(FEMbasis$transf_coord, function(x){
-      reference_mesh$nodes%*%t(x)
-   })
+   nodes < -mesh$nodes
+   faces <- as.vector(t(mesh$faces))
    
-   points <- do.call(rbind,points)
-
-   # locations is the matrix with that will contain the coordinate of the points where the function is evaluated
-   locations <- points + mesh$nodes[mesh$triangles[rep(1:num_elements,each=num_points),1],]
-
-   evals <- mapply(function(X,Y){
-     list(R_eval_local.FEM(FEM, locations = X, element_index=Y))
-   }, lapply(split(locations, rep(1:num_elements, each=num_points)), matrix, nrow = num_points), 1:num_elements)
-   
-   # First the triangles matrix for the reference mesh is copy-pasted num_elements times
-   # Then we add to each column the right offset
-   triangles <- reference_mesh$triangles[rep.int(1:nrow(reference_mesh$triangles), num_elements),] +
-                      num_points*rep(0:(num_elements-1), each=nrow(reference_mesh$triangles))
-
-   triangles <- as.vector(t(triangles))
-   heat <- heat.colors(100)
-
-   nplots <- ncol(FEM$coeff)
-   evals <- matrix(unlist(evals), ncol=nplots, byrow = TRUE)
-
-   for (i in 1:nplots){
-     if (i > 1)
-        readline("Press any key for the next plot...")
-
-     open3d()
-     axes3d()
-     rgl.pop("lights")
-     light3d(specular="black")
-     z <- evals[triangles,i]
-     rgl.triangles(locations[triangles,1], locations[triangles,2], z,
-                   color = heat[round(99*(z-min(z))/diff(range(z)))+1],...)
-     aspect3d(2,2,1)
-     rgl.viewpoint(0,-45)
-   }
- }
-
-
- R_plot_manifold = function(FEM, ...){
-   triangles = c(t(FEM$FEMbasis$mesh$triangles))
-   ntriangles = FEM$FEMbasis$mesh$ntriangles
-   order=FEM$FEMbasis$mesh$order
-   nodes=FEM$FEMbasis$mesh$nodes
-   edges=matrix(rep(0,6*ntriangles),ncol=2)
-   for(i in 0:(ntriangles-1)){
-     edges[3*i+1,]=c(triangles[3*order*i+1],triangles[3*order*i+2])
-     edges[3*i+2,]=c(triangles[3*order*i+1],triangles[3*order*i+3])
-     edges[3*i+3,]=c(triangles[3*order*i+2],triangles[3*order*i+3])
-   }
-   edges=edges[!duplicated(edges),]
-   edges<-as.vector(t(edges))
-
-   coeff = FEM$coeff
-
-   FEMbasis = FEM$FEMbasis
-
-   mesh = FEMbasis$mesh
-
-   p=jet.col(n=128,alpha=0.8)
-   #p <- colorRampPalette(c("#0E1E44","#3E6DD8","#68D061","#ECAF53", "#EB5F5F","#E11F1C"))(128)
-   palette(p)
-
-   ncolor=length(p)
-
-   nsurf = dim(coeff)[[2]]
-   for (isurf in 1:nsurf)
-   {
-     open3d()
-     axes3d()
-     rgl.pop("lights")
-     light3d(specular="black")
-
-     diffrange = max(coeff[,isurf])-min(coeff[,isurf])
-
-     col = coeff[triangles,isurf]
-     col= (col - min(coeff[,isurf]))/diffrange*(ncolor-1)+1
-
-     rgl.triangles(x = nodes[triangles ,1], y = nodes[triangles ,2],
-                   z=nodes[triangles,3],
-                   color = col,...)
-     rgl.lines(x = nodes[edges ,1], y = nodes[edges ,2],
-               z=nodes[edges,3],
-               color = "black",...)
-     aspect3d("iso")
-     rgl.viewpoint(0,-45)
-     if (nsurf > 1 && isurf<nsurf)
-     {readline("Press a button for the next plot...")}
-   }
- }
-
-
-
- R_plot_volume = function(FEM,...){
-
-   # if(!require(rgl)){
-   #   stop("The plot mesh.3D_function(...) requires the R package rgl, please install it and try again!")
-   # }
-   # # if(!require(geometry)){
-   #   stop("The plot mesh.3D_function(...) requires the R package geometry, please install it and try again!")
-   # }
-
-   tetrahedrons = FEM$FEMbasis$mesh$tetrahedrons
-
-   nodes=FEM$FEMbasis$mesh$nodes
-
-   ntetrahedrons = FEM$FEMbasis$mesh$ntetrahedrons
-
-   tet=t(rbind(tetrahedrons[,-1],tetrahedrons[,-2],tetrahedrons[,-3],tetrahedrons[,-4]))
-
-   coeff = FEM$coeff
-
-   nsurf = dim(coeff)[[2]]
-
-   p=jet.col(n=128,alpha=0.8)
-   #p <- colorRampPalette(c("#0E1E44","#3E6DD8","#68D061","#ECAF53", "#EB5F5F","#E11F1C"))(128)
-   ncolors=length(p)
-   for (isurf in 1:nsurf)
-   {	col=rep(0,ntetrahedrons)
-   for(j in 1:ntetrahedrons)
-     col[j]=mean(c(coeff[tetrahedrons[j,1],isurf],coeff[tetrahedrons[j,2],isurf],
-                   coeff[tetrahedrons[j,3],isurf],coeff[tetrahedrons[j,4],isurf]))
-
-
-   col=rep(1,3) %o% col
-
-
-   diffrange = max(col)-min(col)
-
-   col= (col - min(col))/diffrange*(ncolors-1)+1
-   col=p[col]
-
    open3d()
    axes3d()
    rgl.pop("lights")
    light3d(specular="black")
-
-   rgl.triangles(nodes[tet,1],nodes[tet,2],nodes[tet,3],col=col,alpha=0.7,...)
-
-   #tetramesh(tetrahedrons,nodes,col=col,alpha=0.7)
-
+   
+   rgl.triangles(nodes[faces,1],nodes[faces,2],nodes[faces,3],col="white",...)
+   
    aspect3d("iso")
    rgl.viewpoint(0,-45)
-   if (nsurf > 1 && isurf<nsurf)
-   {readline("Press a button for the next plot...")}
+   
+}
+
+
+R_plot.ORD1.FEM <- function(FEM, ...) {
+   
+   nodes <- FEM$FEMbasis$mesh$nodes
+   triangles <- as.vector(t(FEM$FEMbasis$mesh$triangles))
+   
+   heat <- heat.colors(100)
+   # How many plots are needed?
+   nplots <- ncol(FEM$coeff)
+   
+   for (i in 1:nplots) {
+      
+      if (i > 1)
+         readline("Press any key for the next plot...")
+      
+      open3d()
+      axes3d()
+      
+      z <- FEM$coeff[triangles,i]
+      rgl.triangles(nodes[triangles,1], nodes[triangles,2], z,
+                    color = heat[round(99*(z-min(z))/diff(range(z)))+1],...)
+      
+      aspect3d(2,2,1)
+      rgl.viewpoint(0,-45)
    }
+}
 
- }
+R_plot.ORDN.FEM <- function(FEM, num_refinements=10, ...){
+   # num_refinements sets the number of subdivisions on each triangle edge to be applied for refinement
+   if(!(FEM$FEMbasis$order %in% c(1,2)))
+      stop('ORDER has to be either 1 or 2.')
+   
+   mesh <- FEM$FEMbasis$mesh
+   num_elements <- nrow(mesh$triangles)
+   
+   # For the reference triangles we construct a regular mesh
+   x <- seq(from = 0, to = 1, length.out = num_refinements+1)
+   points_ref <- expand.grid(x,x)
+   points_ref <- points_ref[rowSums(points_ref)<=1,]
+   
+   reference_mesh <- create.mesh.2D(nodes = points_ref, order = 1)
+   num_points <- nrow(reference_mesh$nodes)
+   
+   points <- do.call(rbind,lapply(FEMbasis$transf_coord, function(x){
+      reference_mesh$nodes%*%t(x)
+   }))
+   
+   # locations is the matrix with that will contain the coordinate of the points where the function is evaluated
+   locations <- points + mesh$nodes[mesh$triangles[rep(1:num_elements,each=num_points),1],]
+   
+   # evaluate the function
+   evals <- do.call(rbind,lapply(seq_len(num_elements),function(i){
+      R_eval_local.FEM(FEM, locations = locations[(i-1)*num_points+seq_len(num_points),], element_index = i)
+   }))
+   
+   # First the triangles matrix for the reference mesh is copy-pasted num_elements times
+   # Then we add to each column the right offset
+   triangles <- reference_mesh$triangles[rep.int(1:nrow(reference_mesh$triangles), num_elements),] +
+      num_points*rep(0:(num_elements-1), each=nrow(reference_mesh$triangles))
+   
+   triangles <- as.vector(t(triangles))
+   heat <- heat.colors(100)
+   
+   nplots <- ncol(FEM$coeff)
+   
+   for (i in 1:nplots){
+      if (i > 1)
+         readline("Press any key for the next plot...")
+      
+      open3d()
+      axes3d()
+      rgl.pop("lights")
+      light3d(specular="black")
+      z <- evals[triangles,i]
+      rgl.triangles(locations[triangles,1], locations[triangles,2], z,
+                    color = heat[round(99*(z-min(z))/diff(range(z)))+1],...)
+      aspect3d(2,2,1)
+      rgl.viewpoint(0,-45)
+   }
+}
+
+R_plot_manifold <- function(FEM, ...){
+   
+   nodes <- FEM$FEMbasis$mesh$nodes
+   triangles <- as.vector(t(FEM$FEMbasis$mesh$triangles))
+   edges <- as.vector(t(FEM$FEMbasis$mesh$edges))
+   coeff <- FEM$coeff
+   
+   p <- jet.col(n=128,alpha=0.8)
+   #p <- colorRampPalette(c("#0E1E44","#3E6DD8","#68D061","#ECAF53", "#EB5F5F","#E11F1C"))(128)
+   palette(p)
+   ncolor <- length(p)
+   
+   nplots <- ncol(coeff)
+   
+   for (i in 1:nplots){
+      if (i > 1)
+         readline("Press any key for the next plot...")
+      
+      open3d()
+      axes3d()
+      rgl.pop("lights")
+      light3d(specular="black")
+      
+      col <- coeff[triangles,i]
+      col <- (ncolor-1)*(col-min(col))/diff(range(col))+1
+      
+      rgl.triangles(nodes[triangles,1], nodes[triangles,2],
+                    nodes[triangles,3], color = col,...)
+      rgl.lines(nodes[edges,1], nodes[edges,2], nodes[edges,3],
+                color = "black",...)
+      aspect3d("iso")
+      rgl.viewpoint(0,-45)
+   }
+}
 
 
- #' Image Plot of a 2D FEM object
- #'
- #' @param mesh A 2D-mesh \code{FEM} object.
- #' @param num_refinements A natural number specifying how many bisections should by applied to each triangular element for
- #' plotting purposes. This functionality is useful where a discretization with 2nd order Finite Element is applied.
- #' @param ... Arguments representing  graphical options to be passed to \link[rgl]{plot3d}.
- #' @description Image plot of a \code{FEM} object, generated by the function \code{FEM} or returned by
- #' \code{smooth.FEM} and \code{FPCA.FEM}. Only FEM objects defined over a 2D mesh can be plotted with this method.
- #' @usage \method{image}{FEM}(mesh, num_refinements, ...)
- #' @seealso \code{\link{FEM}} \code{\link{plot.FEM}}
- #' @export
- #' @examples
- #' library(fdaPDE)
- #' ## Upload the horseshoe2D data
- #' data(horseshoe2D)
- #'
- #' ## Create the 2D mesh
- #' mesh = create.mesh.2D(nodes = rbind(boundary_nodes, locations), segments = boundary_segments)
- #' ## Create the FEM basis
- #' FEMbasis = create.FEM.basis(mesh)
- #' ## Compute the coeff vector evaluating the desired function at the mesh nodes
- #' ## In this case we consider the fs.test() function introduced by Wood et al. 2008
- #' coeff = fs.test(mesh$nodes[,1], mesh$nodes[,2], exclude = FALSE)
- #' ## Create the FEM object
- #' FEMfunction = FEM(coeff, FEMbasis)
- #'
- #' ## Plot the FEM function
- #' image(FEMfunction)
- image.FEM = function(mesh, num_refinements = NULL, ...)
- {
+R_plot_volume <- function(FEM,...){
+   nodes <- FEM$FEMbasis$mesh$nodes
+   faces <- as.vector(t(FEM$FEMbasis$mesh$faces))
+   
+   p <- jet.col(n=128,alpha=0.8)
+   #p <- colorRampPalette(c("#0E1E44","#3E6DD8","#68D061","#ECAF53", "#EB5F5F","#E11F1C"))(128)
+   ncolor <- length(p)
+   
+   nplots <- ncol(FEM$coeff)
+   
+   for (i in 1:nplots){
+      if (i > 1)
+         readline("Press any key for the next plot...")
+      
+      open3d()
+      axes3d()
+      rgl.pop("lights")
+      light3d(specular="black")
+      
+      col<-rowMeans(matrix(FEM$coeff[faces,i],ncol=3,byrow=TRUE))
+      col <- (ncolor-1)*(col-min(col))/diff(range(col))+1
+      
+      #Note: R is implicitly rounding col for use as an index
+      col <- p[rep(col,each=3)]
+      
+      rgl.triangles(nodes[faces,1],nodes[faces,2],nodes[faces,3],col=col,alpha=0.7,...)
+      
+      aspect3d("iso")
+      rgl.viewpoint(0,-45)
+   }
+}
+
+#' Image Plot of a 2D FEM object
+#'
+#' @param mesh A 2D-mesh \code{FEM} object.
+#' @param num_refinements A natural number specifying how many bisections should by applied to each triangular element for
+#' plotting purposes. This functionality is useful where a discretization with 2nd order Finite Element is applied.
+#' @param ... Arguments representing  graphical options to be passed to \link[rgl]{plot3d}.
+#' @description Image plot of a \code{FEM} object, generated by the function \code{FEM} or returned by
+#' \code{smooth.FEM} and \code{FPCA.FEM}. Only FEM objects defined over a 2D mesh can be plotted with this method.
+#' @usage \method{image}{FEM}(mesh, num_refinements, ...)
+#' @seealso \code{\link{FEM}} \code{\link{plot.FEM}}
+#' @export
+#' @examples
+#' library(fdaPDE)
+#' ## Upload the horseshoe2D data
+#' data(horseshoe2D)
+#'
+#' ## Create the 2D mesh
+#' mesh = create.mesh.2D(nodes = rbind(boundary_nodes, locations), segments = boundary_segments)
+#' ## Create the FEM basis
+#' FEMbasis = create.FEM.basis(mesh)
+#' ## Compute the coeff vector evaluating the desired function at the mesh nodes
+#' ## In this case we consider the fs.test() function introduced by Wood et al. 2008
+#' coeff = fs.test(mesh$nodes[,1], mesh$nodes[,2], exclude = FALSE)
+#' ## Create the FEM object
+#' FEMfunction = FEM(coeff, FEMbasis)
+#'
+#' ## Plot the FEM function
+#' image(FEMfunction)
+image.FEM <- function(mesh, num_refinements = NULL, ...)
+{
    if(class(mesh$FEMbasis$mesh)!='mesh.2D')
-     stop('This function is implemented only for 2D mesh FEM objects')
-
+      stop('This function is implemented only for 2D mesh FEM objects')
+   
    if(mesh$FEMbasis$order == 1)
    {
-     R_image.ORD1.FEM(mesh, ...)
+      R_image.ORD1.FEM(mesh, ...)
    }else{
-     R_image.ORDN.FEM(mesh, num_refinements, ...)
+      R_image.ORDN.FEM(mesh, num_refinements, ...)
    }
- }
+}
 
 
- R_image.ORD1.FEM = function(FEM)
- {
-   # PLOT  Plots a FEM object FDOBJ over a rectangular grid defined by
-   # vectors X and Y;
-   #
-
-   #   if (!is.fd(fdobj))
-   #   {
-   #     stop('FDOBJ is not an FD object')
-   #   }
-
-   nodes = FEM$FEMbasis$mesh$nodes
-   triangles = FEM$FEMbasis$mesh$triangles
-
-   coeff = FEM$coeff
-
-   FEMbasis = FEM$FEMbasis
-
-   mesh = FEMbasis$mesh
-
-   heat = heat.colors(100)
-
-   nsurf = dim(coeff)[[2]]
-   for (isurf in 1:nsurf)
-   {
-     open3d()
-     axes3d()
-     rgl.pop("lights")
-     light3d(specular="black")
-     z = coeff[as.vector(t(triangles)),isurf]
-     rgl.triangles(x = nodes[as.vector(t(triangles)) ,1], y = nodes[as.vector(t(triangles)) ,2],
-                   z=0,
-                   color = heat[round(99*(z- min(z))/(max(z)-min(z)))+1])
-     aspect3d(2,2,1)
-     rgl.viewpoint(0,0)
-     if (nsurf > 1)
-     {readline("Press a button for the next plot...")}
+R_image.ORD1.FEM = function(FEM){
+   nodes <- FEM$FEMbasis$mesh$nodes
+   triangles <- as.vector(t(FEM$FEMbasis$mesh$triangles))
+   
+   heat <- heat.colors(100)
+   # How many plots are needed?
+   nplots <- ncol(FEM$coeff)
+   
+   for (i in 1:nplots) {
+      
+      if (i > 1)
+         readline("Press any key for the next plot...")
+      
+      open3d()
+      axes3d()
+      rgl.pop("lights") 
+      light3d(specular="black") 
+      
+      z <- FEM$coeff[triangles,i]
+      rgl.triangles(nodes[triangles,1], nodes[triangles,2], 0,
+                    color = heat[round(99*(z-min(z))/diff(range(z)))+1])
+      
+      aspect3d(2,2,1)
+      rgl.viewpoint(0,0)
    }
- }
+}
 
- R_image.ORDN.FEM = function(FEM, num_refinements)
- {
-   coeff = FEM$coeff
-
-   FEMbasis = FEM$FEMbasis
-
-   mesh = FEMbasis$mesh
-
-   heat = heat.colors(100)
-
-   coeff = FEM$coeff
-
-   if(is.null(num_refinements))
-   {
-     num_refinements = 10
+R_image.ORDN.FEM <- function(FEM, num_refinements){
+   # num_refinements sets the number of subdivisions on each triangle edge to be applied for refinement
+   if(!(FEM$FEMbasis$order %in% c(1,2)))
+      stop('ORDER has to be either 1 or 2.')
+   
+   mesh <- FEM$FEMbasis$mesh
+   num_elements <- nrow(mesh$triangles)
+   
+   # For the reference triangles we construct a regular mesh
+   x <- seq(from = 0, to = 1, length.out = num_refinements+1)
+   points_ref <- expand.grid(x,x)
+   points_ref <- points_ref[rowSums(points_ref)<=1,]
+   
+   reference_mesh <- create.mesh.2D(nodes = points_ref, order = 1)
+   num_points <- nrow(reference_mesh$nodes)
+   
+   points <- do.call(rbind,lapply(FEMbasis$transf_coord, function(x){
+      reference_mesh$nodes%*%t(x)
+   }))
+   
+   # locations is the matrix with that will contain the coordinate of the points where the function is evaluated
+   locations <- points + mesh$nodes[mesh$triangles[rep(1:num_elements,each=num_points),1],]
+   
+   # evaluate the function
+   evals <- do.call(rbind,lapply(seq_len(num_elements),function(i){
+      R_eval_local.FEM(FEM, locations = locations[(i-1)*num_points+seq_len(num_points),], element_index = i)
+   }))
+   
+   # First the triangles matrix for the reference mesh is copy-pasted num_elements times
+   # Then we add to each column the right offset
+   triangles <- reference_mesh$triangles[rep.int(1:nrow(reference_mesh$triangles), num_elements),] +
+      num_points*rep(0:(num_elements-1), each=nrow(reference_mesh$triangles))
+   
+   triangles <- as.vector(t(triangles))
+   heat <- heat.colors(100)
+   
+   nplots <- ncol(FEM$coeff)
+   
+   for (i in 1:nplots){
+      if (i > 1)
+         readline("Press any key for the next plot...")
+      
+      open3d()
+      axes3d()
+      rgl.pop("lights")
+      light3d(specular="black")
+      z <- evals[triangles,i]
+      rgl.triangles(locations[triangles,1], locations[triangles,2], 0,
+                    color = heat[round(99*(z-min(z))/diff(range(z)))+1])
+      aspect3d(2,2,1)
+      rgl.viewpoint(0,0)
    }
-
-   x = seq(from = 0, to = 1, length.out = num_refinements+1)
-   y = seq(from = 0, to = 1, length.out = num_refinements+1)
-   points_ref = expand.grid(x,y)
-   points_ref = points_ref[points_ref[,1] + points_ref[,2] <= 1,]
-
-   meshi = create.mesh.2D(nodes = points_ref, order = 1)
-   #plot(meshi)
-
-   locations = matrix(nrow = nrow(mesh$triangles)*nrow(meshi$nodes), ncol = 3*ncol(coeff))
-   triangles = matrix(nrow = nrow(mesh$triangles)*nrow(meshi$triangles), ncol = 3*ncol(coeff))
-   tot = 0
-
-   for (i in 1:nrow(mesh$triangles))
-   {
-     transf<-rbind(cbind(FEMbasis$transf_coord$diff1x[i],FEMbasis$transf_coord$diff2x[i]),c(FEMbasis$transf_coord$diff1y[i],FEMbasis$transf_coord$diff2y[i]))
-     pointsi = t(transf%*%t(meshi$nodes) + mesh$nodes[mesh$triangles[i,1],])
-     z = R_eval_local.FEM(FEM, locations = pointsi, element_index = i)
-
-     #mesh3 <- addNormals(subdivision3d(tmesh3d(vertices = t(locations), indices = t(triangles), homogeneous = FALSE)),deform = TRUE)
-
-     locations[((i-1)*nrow(pointsi)+1):(i*nrow(pointsi)),] = cbind(pointsi,z)
-     triangles[((i-1)*nrow(meshi$triangles)+1):(i*nrow(meshi$triangles)),] = meshi$triangles+tot
-     tot = tot + nrow(meshi$nodes)
-   }
-
-   heat = heat.colors(100)
-
-   nsurf = dim(coeff)[[2]]
-   for (isurf in 1:nsurf)
-   {
-     open3d()
-     axes3d()
-     rgl.pop("lights")
-     light3d(specular="black")
-     z = locations[as.vector(t(triangles)), 2 + isurf];
-     rgl.triangles(x = locations[as.vector(t(triangles)) ,1], y = locations[as.vector(t(triangles)) ,2],
-                   z=0,
-                   color = heat[round(99*(z- min(z))/(max(z)-min(z)))+1])
-     aspect3d(2,2,1)
-     rgl.viewpoint(0,0)
-     if (nsurf > 1)
-     {readline("Press a button for the next plot...")}
-   }
- }
+}
 
 
- R_eval_local.FEM = function(FEM, locations, element_index)
- {
-   N = nrow(locations)
-   # Augment Xvec and Yvec by ones for computing barycentric coordinates
-   Pgpts = cbind(matrix(1,N,1),locations[,1],locations[,2])
-
+R_eval_local.FEM <- function(FEM, locations, element_index)
+{
+   num_points<-nrow(locations)
+   # Augment locations matrix with a column made of 1s for computing barycentric coordinates
+   Pgpts = cbind(1,locations)
+   
    # Get nodes and index
-   FEMbasis = FEM$FEMbasis
-   mesh = FEMbasis$mesh
-   nodes = mesh$nodes
-   triangles = mesh$triangles
-   coeff = FEM$coeff
-   nsurf = dim(coeff)[2]
-
-   order = FEMbasis$order
-   #nodeindex = params$nodeindex
-   detJ = FEMbasis$detJ
-
-   # 1st, 2nd, 3rd vertices of triangles
-
-   v1 = nodes[triangles[element_index,1],]
-   v2 = nodes[triangles[element_index,2],]
-   v3 = nodes[triangles[element_index,3],]
-
-   if(order !=2 && order != 1)
-   {
-     stop('ORDER is neither 1 or 2.')
-   }
-
+   nodes <- FEM$FEMbasis$mesh$nodes
+   triangles <- FEM$FEMbasis$mesh$triangles
+   
+   # 3x2 matrix of vertices of triangles
+   
+   vertices<-nodes[triangles[element_index,],]
+   
    # Denominator of change of coordinates chsange matrix
-
-   modJ = FEMbasis$detJ[element_index]
-   ones3 = matrix(1,3,1)
-   #modJMat = modJ %*% t(ones3)
-
-   M1 = c(v2[1]*v3[2] - v3[1]*v2[2], v2[2] - v3[2], v3[1] - v2[1])/(modJ)
-   M2 = c(v3[1]*v1[2] - v1[1]*v3[2], v3[2] - v1[2], v1[1] - v3[1])/(modJ)
-   M3 = c(v1[1]*v2[2] - v2[1]*v1[2], v1[2] - v2[2], v2[1] - v1[1])/(modJ)
-
-   evalmat = matrix(NA, nrow=N, ncol=nsurf)
-
-   for (isurf in 1:nsurf)
-   {
-     for(i in 1:N)
-     {
-       baryc1 = (M1*Pgpts[i,]) %*% ones3
-       baryc2 = (M2*Pgpts[i,]) %*% ones3
-       baryc3 = (M3*Pgpts[i,]) %*% ones3
-
-       if(order == 2)
-       {
-         c1 = coeff[triangles[element_index,1],isurf]
-         c2 = coeff[triangles[element_index,2],isurf]
-         c3 = coeff[triangles[element_index,3],isurf]
-         c4 = coeff[triangles[element_index,6],isurf]
-         c5 = coeff[triangles[element_index,4],isurf]
-         c6 = coeff[triangles[element_index,5],isurf]
-
-         fval =  c1*(2* baryc1^2 - baryc1) +
-           c2*(2* baryc2^2 - baryc2) +
-           c3*(2* baryc3^2 - baryc3) +
-           c4*(4* baryc1 * baryc2) +
-           c5*(4* baryc2 * baryc3) +
-           c6*(4* baryc3 * baryc1)
-         evalmat[i,isurf] = fval
-       }else{
-         c1 = coeff[triangles[element_index,1],isurf]
-         c2 = coeff[triangles[element_index,2],isurf]
-         c3 = coeff[triangles[element_index,3],isurf]
-         fval = c1*baryc1 + c2*baryc2 + c3*baryc3
-         evalmat[i,isurf] = fval
-       }
-     }
+   
+   modJ <- FEM$FEMbasis$detJ[element_index]
+   
+   v231<-vertices[c(2,3,1),]
+   v312<-vertices[c(3,1,2),]
+   coord_change <- cbind(v231[,1]*v312[,2]-v312[,1]*v231[,2], v231[,2]-v312[,2], v312[,1]-v231[,1])/modJ
+   
+   baryc <- rowSums(coord_change[rep.int(1:3,num_points),]*Pgpts[rep(1:num_points,each=3),])
+   baryc <- matrix(baryc,nrow=3)
+   
+   if(FEM$FEMbasis$order==2){
+      baryc <- rbind(baryc,4*baryc)*rbind(2*baryc-1,baryc[c(2,3,1),])
+      evalmat <- t(baryc) %*% FEM$coeff[triangles[element_index,c(1:3,6,4,5)],]
+   }else{
+      evalmat <- t(baryc) %*% FEM$coeff[triangles[element_index,1:3],]
    }
    return(evalmat)
- }
+}

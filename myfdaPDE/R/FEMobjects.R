@@ -53,13 +53,13 @@ create.FEM.basis = function(mesh=NULL)
   FEMbasis = list(mesh = mesh, order = as.integer(mesh$order), nbasis = nrow(mesh$nodes))
   
   if (class(mesh)=="mesh.2D")
-      FEMbasis <- c(FEMbasis, R_elementProperties(mesh))
+    FEMbasis <- c(FEMbasis, R_elementProperties(mesh))
   
   class(FEMbasis) = "FEMbasis"
   
   return(FEMbasis)
   
- }
+}
 #' Define a surface or spatial field by a Finite Element basis expansion
 #' 
 #' @param coeff A vector or a matrix containing the coefficients for the Finite Element basis expansion. The number of rows 
@@ -110,15 +110,15 @@ R_elementProperties=function(mesh){
   triangles <- mesh$triangles
   
   transf_coord <- apply(triangles, 1, function (x){
-      transf_matrix <- cbind(nodes[x[2],] - nodes[x[1],], nodes[x[3],] - nodes[x[1],])
-      list(transf_matrix)
-      })
+    transf_matrix <- cbind(nodes[x[2],] - nodes[x[1],], nodes[x[3],] - nodes[x[1],])
+    list(transf_matrix)
+  })
   transf_coord <- unlist(transf_coord, recursive = FALSE)
   
   #  Determinant of the Jacobian (equal to double the area of triangle)
   detJ <- vapply(transf_coord,function(x){
-      x[1]*x[4]-x[2]*x[3]  
-      },numeric(1))
+    x[1]*x[4]-x[2]*x[3]  
+  },numeric(1))
   
   FEStruct <- list(detJ=detJ, transf_coord=transf_coord)
   return(FEStruct)
