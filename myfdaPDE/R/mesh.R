@@ -63,8 +63,8 @@ triangulate_native <- function(P, PB, PA, S, SB,H, TR, flags) {
 #' of the domain. If this imput is NULL, it generates a triangulation over the
 #' convex hull of the points.
 #' It is also possible to create a mesh.2D from the nodes locations and the connectivity matrix.
-#' @usage create.mesh.2D(nodes, nodesattributes = NA, segments = NA, holes = NA,
-#'                      triangles = NA, order = 1, verbosity = 0)
+#' @usage create.mesh.2D(nodes, nodesattributes = NULL, segments = NULL, holes = NULL,
+#'                      triangles = NULL, order = 1, verbosity = 0)
 #' @seealso \code{\link{refine.mesh.2D}}, \code{\link{create.FEM.basis}}
 #' @return An object of the class mesh.2D with the following output:
 #' \itemize{
@@ -108,7 +108,7 @@ triangulate_native <- function(P, PB, PA, S, SB,H, TR, flags) {
 #' ## In this case the domain is the convex hull of the data locations.
 #' ## Do this only if you do not have any information about the shape of the domain of interest.
 
-create.mesh.2D <- function(nodes, nodesattributes = NA, segments = NA, holes = NA, triangles = NA, order = 1, verbosity = 0)
+create.mesh.2D <- function(nodes, nodesattributes = NULL, segments = NULL, holes = NULL, triangles = NULL, order = 1, verbosity = 0)
 {
   ##########################
   ###   Input checking   ###
@@ -125,7 +125,7 @@ create.mesh.2D <- function(nodes, nodesattributes = NA, segments = NA, holes = N
     stop("Duplicated nodes")
 
   ## If attributes not specified, set them to a matrix with zero columns
-  if (any(is.na(nodesattributes))) {
+  if (any(is.null(nodesattributes))) {
     nodesattributes <- matrix(0, nrow(nodes), 0)
   }else{
     nodesattributes <- as.matrix(nodesattributes)
@@ -133,15 +133,8 @@ create.mesh.2D <- function(nodes, nodesattributes = NA, segments = NA, holes = N
       stop("Point attribute matrix \'nodesattributes\' does not have same number of rows the point matrix \'nodes\'")
   }
 
-  ## If boundary nodes not specified, set them to 0
-  #   if (any(is.na(nodesmarkers))) {
-  #     nodesmarkers <- vector(mode = "integer", 0)
-  #   }else{
-  #     nodesmarkers = as.vector(nodesmarkers)
-  #   }
-
   ## Deal with segments
-  if (any(is.na(segments))) {
+  if (any(is.null(segments))) {
     segments <- matrix(0, 0, 2)
   } else {
     segments <- as.matrix(segments)
@@ -150,20 +143,13 @@ create.mesh.2D <- function(nodes, nodesattributes = NA, segments = NA, holes = N
     }
   }
 
-  ## If boundary segments not specified, set them to 0
-  #   if (any(is.na(segmentsmarkers))) {
-  #     segmentsmarkers <- vector(mode = "integer", 0)
-  #   }else{
-  #     segmentsmarkers = as.vector(segmentsmarkers)
-  #   }
-
   ## If hole not specified, set it to empty matrix
-  if (any(is.na(holes)))
+  if (any(is.null(holes)))
     holes <- matrix(0, 0, 2)
   holes = as.matrix(holes)
 
   ## If triangles are not already specified
-  if(any(is.na(triangles)))
+  if(any(is.null(triangles)))
     triangles = matrix(0,nrow = 0, ncol = 3)
   triangles = as.matrix(triangles)
 
@@ -287,18 +273,18 @@ create.mesh.2D <- function(nodes, nodesattributes = NA, segments = NA, holes = N
 #' plot(finemesh2)
 #' @export
 
-refine.mesh.2D<-function(mesh, minimum_angle = NA, maximum_area = NA, delaunay = FALSE, verbosity = 0)
+refine.mesh.2D<-function(mesh, minimum_angle = NULL, maximum_area = NULL, delaunay = FALSE, verbosity = 0)
 {
   if(class(mesh) !="mesh.2D")
     stop("Sorry, this function is implemented just for mesh.2D class ")
 
   flags="rpven"
 
-  if(!is.na(minimum_angle)){
+  if(!is.null(minimum_angle)){
     flags <- paste(flags, "q", sprintf("%.12f", minimum_angle), sep='')
   }
 
-  if(!is.na(maximum_area)){
+  if(!is.null(maximum_area)){
     flags <- paste(flags, "a", sprintf("%.12f", maximum_area), sep='')
   }
 
@@ -394,7 +380,7 @@ refine.mesh.2D<-function(mesh, minimum_angle = NA, maximum_area = NA, delaunay =
 #' mesh = create.mesh.2.5D(nodes = hub2.5D.nodes, triangles = hub2.5D.triangles)
 #' plot(mesh)
 
-create.mesh.2.5D<- function(nodes, nodesattributes = NA, segments = NA, holes = NA, triangles = NA, order = 1)
+create.mesh.2.5D<- function(nodes, triangles = NULL, order = 1, nodesattributes = NULL, segments = NULL, holes = NULL)
 {
   ##########################
   ###   Input checking   ###
@@ -411,7 +397,7 @@ create.mesh.2.5D<- function(nodes, nodesattributes = NA, segments = NA, holes = 
     stop("Duplicated nodes")
 
   ## If attributes not specified, set them to a matrix with zero columns
-  if (any(is.na(nodesattributes))) {
+  if (any(is.null(nodesattributes))) {
     nodesattributes <- matrix(0, nrow(nodes), 0)
   }else{
     nodesattributes <- as.matrix(nodesattributes)
@@ -420,7 +406,7 @@ create.mesh.2.5D<- function(nodes, nodesattributes = NA, segments = NA, holes = 
   }
 
   ## Deal with segments
-  if (any(is.na(segments))) {
+  if (any(is.null(segments))) {
     segments <- matrix(0, 0, 2)
   } else {
     segments <- as.matrix(segments)
@@ -429,12 +415,12 @@ create.mesh.2.5D<- function(nodes, nodesattributes = NA, segments = NA, holes = 
     }
   }
 
-  if (any(is.na(holes)))
+  if (any(is.null(holes)))
     holes <- matrix(0, 0, 2)
   holes = as.matrix(holes)
 
   ## If triangles are not already specified
-  if(any(is.na(triangles))){
+  if(any(is.null(triangles))){
     stop("Per il momento in questo caso serve triangles")
     # triangles = matrix(0,nrow = 0, ncol = 3)
   } else {
@@ -512,6 +498,7 @@ create.mesh.2.5D<- function(nodes, nodesattributes = NA, segments = NA, holes = 
 
     triangles<-cbind(triangles,matrix(0,nrow=nrow(triangles),ncol=3))
     triangles[triangle_labels]<-indices
+    
     nodes<-rbind(nodes,midpoints)
     nodesmarkers<-c(nodesmarkers,rep(0,nrow(midpoints)))
     
@@ -555,7 +542,7 @@ create.mesh.2.5D<- function(nodes, nodesattributes = NA, segments = NA, holes = 
 #' ##Create the triangulated mesh from the connectivity matrix and nodes locations
 #' mesh=create.mesh.3D(nodes,tetrahedrons)
 
-create.mesh.3D<- function(nodes, nodesattributes = NA, segments = NA, holes = NA, tetrahedrons, order = 1)
+create.mesh.3D<- function(nodes, tetrahedrons, order = 1, nodesattributes = NULL, segments = NULL, holes = NULL)
 {
   ##########################
   ###   Input checking   ###
@@ -573,7 +560,7 @@ create.mesh.3D<- function(nodes, nodesattributes = NA, segments = NA, holes = NA
     stop("Duplicated nodes")
 
   ## If attributes not specified, set them to a matrix with zero columns
-  if (any(is.na(nodesattributes))) {
+  if (any(is.null(nodesattributes))) {
     nodesattributes <- matrix(0, nrow(nodes), 0)
   }else{
     nodesattributes <- as.matrix(nodesattributes)
@@ -582,7 +569,7 @@ create.mesh.3D<- function(nodes, nodesattributes = NA, segments = NA, holes = NA
   }
 
   ## Deal with segments
-  if (any(is.na(segments))) {
+  if (any(is.null(segments))) {
     segments <- matrix(0, 0, 2)
   } else {
     segments <- as.matrix(segments)
@@ -591,12 +578,12 @@ create.mesh.3D<- function(nodes, nodesattributes = NA, segments = NA, holes = NA
     }
   }
 
-  if (any(is.na(holes)))
+  if (any(is.null(holes)))
     holes <- matrix(0, 0, 2)
   holes = as.matrix(holes)
 
   ## If tetrahedrons are not already specified
-  if(any(is.na(tetrahedrons))){
+  if(any(is.null(tetrahedrons))){
     stop("Per il momento in questo caso serve tetrahedrons")
     # triangles = matrix(0,nrow = 0, ncol = 3)
   } else {
@@ -650,15 +637,16 @@ create.mesh.3D<- function(nodes, nodesattributes = NA, segments = NA, holes = NA
   nodesmarkers <- 1:nrow(nodes) %in% faces[facesmarkers]
 
   #Set edges
-  ordered_triangles<-cbind(t(apply(faces, 1, sort)),1:nrow(faces))
-
-  edge_list<-apply(ordered_triangles, 1, function(x){
-    E1<-c(x[c(1,2)],x[4],1)
-    E2<-c(x[c(1,3)],x[4],2)
-    E3<-c(x[c(2,3)],x[4],3)
-    list(E1,E2,E3)
+  edge_list <- apply(ordered_tetrahedrons, 1, function(x){
+    E1<-c(x[c(1,2)],x[5],1)
+    E2<-c(x[c(1,3)],x[5],2)
+    E3<-c(x[c(1,4)],x[5],3)
+    E4<-c(x[c(2,3)],x[5],4)
+    E5<-c(x[c(2,4)],x[5],5)
+    E6<-c(x[c(3,4)],x[5],6)
+    list(E1,E2,E3,E4,E5,E6)
   })
-
+  
   edge_list<-unlist(edge_list, recursive = FALSE)
 
   for (level in 2:1){
@@ -677,13 +665,10 @@ create.mesh.3D<- function(nodes, nodesattributes = NA, segments = NA, holes = NA
   edges <- matrix(unlist(edge_list),ncol=4, byrow = TRUE)[,1:2]
   edges <- edges[!repeated_edges,]
 
-  #Look for boundary edges (first check which edges belong to a boundary face
-  # then throw away duplicate edges) 
-  # Note: cannot use repeated_edges because that gives only the first instance of an edge (which could
-  # belong to a face that is not a boundary face)
-  edgesmarkers <- matrix(unlist(edge_list),ncol=4, byrow = TRUE)[,3] %in% (1:nrow(faces))[facesmarkers]
-  edgesmarkers <- rowsum(as.numeric(edgesmarkers), cumsum(!repeated_edges), reorder = FALSE) > 0
-  
+  #Look for boundary edges (check which edges connect boundary nodes) 
+  edgesmarkers <- matrix(edges %in% (1:nrow(nodes))[nodesmarkers], ncol=2)
+  edgesmarkers <- edgesmarkers[,1] & edgesmarkers[,2]
+    
   edgesmarkers <- as.numeric(edgesmarkers)
   facesmarkers <- as.numeric(facesmarkers)
   nodesmarkers <- as.numeric(nodesmarkers)
@@ -704,25 +689,15 @@ create.mesh.3D<- function(nodes, nodesattributes = NA, segments = NA, holes = NA
   }
   else if(order==2 && ncol(tetrahedrons) == 4){
     print("You set order=2 but passed a matrix of tetrahedrons with just 4 columns. The midpoints for each edge will be computed.")
-    #Questo non funziona per ora
+
     midpoints <- nodes[edges[,1],]/2+nodes[edges[,2],]/2
-    lookUp <- cbind(rep(1:4,each=3),4+c(1,2,3,1,4,5,2,4,6,3,5,6))
     
-    face_labels <- matrix(unlist(edge_list),ncol=4, byrow = TRUE)[,3:4]
+    tetrahedron_labels <- matrix(unlist(edge_list),ncol=4, byrow = TRUE)[,3:4]
+    tetrahedron_labels[,2] <- tetrahedron_labels[,2]+4
     indices<-nrow(nodes)+cumsum(!repeated_edges)
     
-    faces_temp<-matrix(0,nrow=nrow(faces),ncol=3)
-    faces_temp[face_labels]<-indices
-    
-    tetrahedron_labels <- matrix(unlist(faces_list),ncol=5, byrow = TRUE)[,4:5]
-    faces_temp <- faces_temp[cumsum(!repeated_faces),]
-    
-    tetrahedrons <- cbind(tetrahedrons, matrix(0,nrow=nrow(tetrahedrons),ncol=6))
-    bin_list <- vector(mode = "list", length = nrow(tetrahedrons))
-    for (i in 1:nrow(tetrahedron_labels))
-      bin_list[[tetrahedron_labels[i,1]]]<-union(bin_list[[tetrahedron_labels[i,1]]],faces_temp[i,])
-      
-    tetrahedrons[,5:10] <- matrix(unlist(bin_list),nrow=nrow(tetrahedrons),ncol=6,byrow = TRUE) 
+    tetrahedrons<-cbind(tetrahedrons,matrix(0,nrow=nrow(tetrahedrons),ncol=6))
+    tetrahedrons[tetrahedron_labels]<-indices
     
     nodes<-rbind(nodes,midpoints)
     nodesmarkers<-c(nodesmarkers,rep(0,nrow(midpoints)))

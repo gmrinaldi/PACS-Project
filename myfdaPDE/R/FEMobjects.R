@@ -42,35 +42,23 @@
 #' FEMbasis = create.FEM.basis(mesh)
 #' @export
 
-create.FEM.basis = function(mesh)
+create.FEM.basis = function(mesh=NULL)
 {
+  if (is.null(mesh)) 
+    stop("mesh required;  is NULL.")
+  
   if(class(mesh)!='mesh.2D' & class(mesh)!='mesh.2.5D' & class(mesh)!='mesh.3D')
     stop("Unknown mesh class")
   
-  if (class(mesh)=="mesh.2D"){
-
-	  #  The number of basis functions corresponds to the number of vertices
-	  #  for order = 1, and to vertices plus edge midpoints for order = 2
-
-	  nbasis = dim(mesh$nodes)[[1]]
-	  eleProp = R_elementProperties(mesh)
-
-	  #eleProp = NULL
-	  #if(CPP_CODE == FALSE)
-	  #{
-	  #  eleProp = R_elementProperties(mesh)
-	  #}
+  FEMbasis = list(mesh = mesh, order = as.integer(mesh$order), nbasis = nrow(mesh$nodes))
   
-  FEMbasis = list(mesh = mesh, order = as.integer(mesh$order), nbasis = nbasis, detJ=eleProp$detJ, transf_coord = eleProp$transf_coord)
+  if (class(mesh)=="mesh.2D")
+      FEMbasis <- c(FEMbasis, R_elementProperties(mesh))
+  
   class(FEMbasis) = "FEMbasis"
   
-  FEMbasis
-  } else if (class(mesh) == "mesh.2.5D" || class(mesh) == "mesh.3D"){
-
-  	  FEMbasis = list(mesh = mesh, order = as.integer(mesh$order),nbasis = mesh$nnodes)
-  	  class(FEMbasis) = "FEMbasis"
-  	  FEMbasis
-  }
+  return(FEMbasis)
+  
  }
 #' Define a surface or spatial field by a Finite Element basis expansion
 #' 
@@ -99,7 +87,7 @@ create.FEM.basis = function(mesh)
 #' plot(FEMfunction)
 #' @export
 
-FEM<-function(coeff,FEMbasis)
+FEM<-function(coeff=NULL,FEMbasis=NULL)
 {
   if (is.null(coeff)) 
     stop("coeff required;  is NULL.")
@@ -117,38 +105,22 @@ FEM<-function(coeff,FEMbasis)
   return(fclass)
 }
 
-
-R_elementProperties=function(mesh)
-{
-  nele = dim(mesh$triangles)[[1]]
-  nodes = mesh$nodes
-  triangles = mesh$triangles
+R_elementProperties=function(mesh){
+  nodes <- mesh$nodes
+  triangles <- mesh$triangles
   
-  #detJ   = matrix(0,nele,1)      #  vector of determinant of transformations
-  #metric = array(0,c(nele,2,2))  #  3-d array of metric matrices
-  #transf = array(0,c(nele,2,2))
+  transf_coord <- apply(triangles, 1, function (x){
+      transf_matrix <- cbind(nodes[x[2],] - nodes[x[1],], nodes[x[3],] - nodes[x[1],])
+      list(transf_matrix)
+      })
+  transf_coord <- unlist(transf_coord, recursive = FALSE)
   
-  transf_coord = NULL
-  transf_coord$diff1x = nodes[triangles[,2],1] - nodes[triangles[,1],1]
-  transf_coord$diff1y = nodes[triangles[,2],2] - nodes[triangles[,1],2]
-  transf_coord$diff2x = nodes[triangles[,3],1] - nodes[triangles[,1],1]
-  transf_coord$diff2y = nodes[triangles[,3],2] - nodes[triangles[,1],2]
+  #  Determinant of the Jacobian (equal to double the area of triangle)
+  detJ <- vapply(transf_coord,function(x){
+      x[1]*x[4]-x[2]*x[3]  
+      },numeric(1))
   
-  #  Jacobian or double of the area of triangle
-  detJ = transf_coord$diff1x*transf_coord$diff2y - transf_coord$diff2x*transf_coord$diff1y
-  
-  #Too slow, computed only for stiff from diff1x,diff1y,..
-  # for (i in 1:nele)
-  # {
-  #   #transf[i,,] = rbind(cbind(diff1x,diff2x),c(diff1y,diff2y))
-  #   #  Compute controvariant transformation matrix OSS: This is (tranf)^(-T)
-  #   Ael = matrix(c(diff2y, -diff1y, -diff2x,  diff1x),nrow=2,ncol=2,byrow=T)/detJ[i]
-  #   
-  #   #  Compute metric matrix
-  #   metric[i,,] = t(Ael)%*%Ael
-  # } 
-  
-  #FEStruct <- list(detJ=detJ, metric=metric, transf=transf)
   FEStruct <- list(detJ=detJ, transf_coord=transf_coord)
   return(FEStruct)
 }
+
