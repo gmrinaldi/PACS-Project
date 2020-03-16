@@ -122,8 +122,8 @@ template <UInt NNODES>
 class Element<NNODES,2,2> : public Identifier {
 public:
 	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-    static const UInt numVertices=3;
-    static const UInt numSides=3;
+  static const UInt numVertices=3;
+  static const UInt numSides=3;
 	static const UInt myDim=2;
 
     //! This constructor creates an "empty" Element, with an Id Not Valid
@@ -321,7 +321,7 @@ public:
 	const Eigen::Matrix<Real,3,3>& getMetric() const {return metric_;} //inv(MJ^t*MJ)
 	Real getVolume() const{return Volume_;};
 
-	Eigen::Matrix<Real,4,1> getBaryCoordinates(const Point& point) const; 
+	Eigen::Matrix<Real,4,1> getBaryCoordinates(const Point& point) const;
 
 	//! A member that tests if a Point is located inside an Element.
     /*!
@@ -349,7 +349,7 @@ private:
 };
 
 
-//fine implementazione tetraedro 3d 
+//fine implementazione tetraedro 3d
 
 
 
@@ -459,7 +459,7 @@ inline Eigen::Matrix<Real,2,1> evaluate_der_point<6,2,2>(const Element<6,2,2>& t
 
 template <>
 inline Eigen::Matrix<Real,3,1> evaluate_der_point<4,3,3>(const Element<4,3,3>& t, const Point& point, const Eigen::Matrix<Real,4,1>& coefficients)
-{	
+{
 
 	Eigen::Matrix<Real,3,4> B1;
 	B1 << -1,1,0,0,
@@ -476,7 +476,7 @@ inline Eigen::Matrix<Real,3,1> evaluate_der_point<4,3,3>(const Element<4,3,3>& t
 	B1(2,0)=-t.getM_J()(1,1)*t.getM_J()(2,0) + t.getM_J()(1,0)*t.getM_J()(2,1);
 	B1(2,1)= t.getM_J()(0,1)*t.getM_J()(2,0) - t.getM_J()(0,0)*t.getM_J()(1,2);
 	B1(2,2)=-t.getM_J()(0,1)*t.getM_J()(1,0) + t.getM_J()(0,0)*t.getM_J()(1,1);
-	
+
 	B1 = B1 / (6*std::sqrt(t.getDetJ()));
 	*/
 

@@ -386,11 +386,11 @@ create.mesh.2.5D<- function(nodes, triangles = NULL, order = 1, nodesattributes 
   ###   Input checking   ###
   ##########################
   
-  nodesmarkers = vector(mode = "integer", 0)
-  segmentsmarkers = vector(mode = "integer", 0)
-  edgesmarkers = vector(mode = "integer", 0)
+  nodesmarkers <- vector(mode = "integer", 0)
+  segmentsmarkers <- vector(mode = "integer", 0)
+  edgesmarkers <- vector(mode = "integer", 0)
   
-  nodes = as.matrix(nodes)
+  nodes <- as.matrix(nodes)
   if (ncol(nodes) != 3)
     stop("Matrix of nodes should have 3 columns")
   if (anyDuplicated(nodes))
@@ -417,7 +417,7 @@ create.mesh.2.5D<- function(nodes, triangles = NULL, order = 1, nodesattributes 
   
   if (any(is.null(holes)))
     holes <- matrix(0, 0, 2)
-  holes = as.matrix(holes)
+  holes <- as.matrix(holes)
   
   ## If triangles are not already specified
   if(any(is.null(triangles))){
@@ -430,17 +430,13 @@ create.mesh.2.5D<- function(nodes, triangles = NULL, order = 1, nodesattributes 
   #Compute neighbors matrix (see Ueng, Sikorski 1996)
   neighbors <- matrix(-1, nrow = nrow(triangles), ncol = 3)
   
-  #Note: keep only first 3 cols of triangles to avoid issues in case order=2
-  ordered_triangles<-cbind(t(apply(triangles[,1:3], 1, sort)),1:nrow(triangles))
+  #Edge i is in front of node i, i.e. joins the remaining two vertices of the triangle
+  #For instance edge 1 joins vertex 2 and vertex 3
   
-  edge_list<-apply(ordered_triangles, 1, function(x){
-    E1<-c(x[c(1,2)],x[4],1)
-    E2<-c(x[c(1,3)],x[4],2)
-    E3<-c(x[c(2,3)],x[4],3)
-    list(E1,E2,E3)
-  })
-  
-  edge_list<-unlist(edge_list, recursive = FALSE, use.names = FALSE)
+  index_matr <- cbind(rep(seq_len(nrow(triangles)),each=6), c(1,2,1,3,2,3))
+  edge_list <- apply(matrix(triangles[index_matr], ncol = 2, byrow = TRUE), 1, sort)
+  edge_list <- cbind(t(edge_list), rep(seq_len(nrow(triangles)), each = 3), c(3,2,1))
+  edge_list <- split(edge_list, row(edge_list))
   
   for (level in 2:1){
     bin_list <- vector(mode = "list", length = nrow(nodes))
@@ -479,12 +475,12 @@ create.mesh.2.5D<- function(nodes, triangles = NULL, order = 1, nodesattributes 
   out<-NULL
   
   if(order==1 && ncol(triangles) == 3){
-    out = list(nodes=nodes, nodesmarkers=nodesmarkers, nodesattributes=nodesattributes,
+    out <- list(nodes=nodes, nodesmarkers=nodesmarkers, nodesattributes=nodesattributes,
                triangles=triangles, segments=segments, segmentsmarkers=segmentsmarkers,
                edges=edges, edgesmarkers=edgesmarkers, neighbors=neighbors, holes=holes, order=order)
   }
   else if(order==2 && ncol(triangles) == 6){ # triangles matrix contains both the true triangles and the midpoints ones
-    out = list(nodes=nodes, nodesmarkers=nodesmarkers, nodesattributes=nodesattributes,
+    out <- list(nodes=nodes, nodesmarkers=nodesmarkers, nodesattributes=nodesattributes,
                triangles=triangles, segments=segments, segmentsmarkers=segmentsmarkers,
                edges=edges, edgesmarkers=edgesmarkers, neighbors=neighbors, holes=holes, order=order)
   }
@@ -502,7 +498,7 @@ create.mesh.2.5D<- function(nodes, triangles = NULL, order = 1, nodesattributes 
     nodes<-rbind(nodes,midpoints)
     nodesmarkers<-c(nodesmarkers,rep(0,nrow(midpoints)))
     
-    out = list(nodes=nodes, nodesmarkers=nodesmarkers, nodesattributes=nodesattributes,
+    out <- list(nodes=nodes, nodesmarkers=nodesmarkers, nodesattributes=nodesattributes,
                triangles=triangles, segments=segments, segmentsmarkers=segmentsmarkers,
                edges=edges, edgesmarkers=edgesmarkers, neighbors=neighbors, holes=holes, order=order)
   }
@@ -548,10 +544,10 @@ create.mesh.3D<- function(nodes, tetrahedrons, order = 1, nodesattributes = NULL
   ###   Input checking   ###
   ##########################
   
-  nodesmarkers = vector(mode = "integer", 0)
-  segmentsmarkers = vector(mode = "integer", 0)
-  edgesmarkers = vector(mode = "integer", 0)
-  facesmarkers = vector(mode = "integer", 0)
+  nodesmarkers <- vector(mode = "integer", 0)
+  segmentsmarkers <- vector(mode = "integer", 0)
+  edgesmarkers <- vector(mode = "integer", 0)
+  facesmarkers <- vector(mode = "integer", 0)
   
   nodes = as.matrix(nodes)
   if (ncol(nodes) != 3)
@@ -580,33 +576,26 @@ create.mesh.3D<- function(nodes, tetrahedrons, order = 1, nodesattributes = NULL
   
   if (any(is.null(holes)))
     holes <- matrix(0, 0, 2)
-  holes = as.matrix(holes)
+  holes <- as.matrix(holes)
   
   ## If tetrahedrons are not already specified
   if(any(is.null(tetrahedrons))){
     stop("Per il momento in questo caso serve tetrahedrons")
     # triangles = matrix(0,nrow = 0, ncol = 3)
   } else {
-    tetrahedrons = as.matrix(tetrahedrons)
+    tetrahedrons <- as.matrix(tetrahedrons)
   }
   
   #Compute neighbors (see Ueng, Sikorski 1996)
   neighbors <- matrix(-1, nrow = nrow(tetrahedrons), ncol = 4)
   
-  #Note: select first 4 cols of tetrahedrons to avoid issues in case order=2
-  ordered_tetrahedrons<-cbind(t(apply(tetrahedrons[,1:4], 1, sort)),1:nrow(tetrahedrons))
-  
-  faces_list<-apply(ordered_tetrahedrons, 1, function(x){
-    F1<-c(x[c(1,2,3)],x[5],1)
-    F2<-c(x[c(1,2,4)],x[5],2)
-    F3<-c(x[c(1,3,4)],x[5],3)
-    F4<-c(x[c(2,3,4)],x[5],4)
-    
-    list(F1,F2,F3,F4)
-  })
-  
-  faces_list<-unlist(faces_list, recursive = FALSE, use.names = FALSE)
-  
+  #Face i is in front of node i, i.e. contains the remaining three vertices of the tetrahedron
+  #For instance face 1 contains vertex 2, vertex 3 and vertex 4
+  index_matr <- cbind(rep(seq_len(nrow(tetrahedrons)),each=12), c(1,2,3,1,2,4,1,3,4,2,3,4))
+  faces_list <- apply(matrix(tetrahedrons[index_matr], ncol = 3, byrow = TRUE), 1, sort)
+  faces_list <- cbind(t(faces_list), rep(seq_len(nrow(tetrahedrons)), each = 4), c(4,3,2,1))
+  faces_list <- split(faces_list, row(faces_list))
+
   for (level in 3:1){
     bin_list <- vector(mode = "list", length = nrow(nodes))
     for (i in 1:length(faces_list))
@@ -636,18 +625,12 @@ create.mesh.3D<- function(nodes, tetrahedrons, order = 1, nodesattributes = NULL
   facesmarkers <- !c(repeated_faces[-1],FALSE)[!repeated_faces]
   nodesmarkers <- 1:nrow(nodes) %in% faces[facesmarkers]
   
-  #Set edges
-  edge_list <- apply(ordered_tetrahedrons, 1, function(x){
-    E1<-c(x[c(1,2)],x[5],1)
-    E2<-c(x[c(1,3)],x[5],2)
-    E3<-c(x[c(1,4)],x[5],3)
-    E4<-c(x[c(2,3)],x[5],4)
-    E5<-c(x[c(2,4)],x[5],5)
-    E6<-c(x[c(3,4)],x[5],6)
-    list(E1,E2,E3,E4,E5,E6)
-  })
-  
-  edge_list<-unlist(edge_list, recursive = FALSE, use.names = FALSE)
+  #Same for edges
+  #Edges are numbered in this order: (1,2),(2,3),(1,3),(1,4),(2,4),(3,4)
+  index_matr <- cbind(rep(seq_len(nrow(tetrahedrons)),each=12), c(1,2,1,3,1,4,2,3,2,4,3,4))
+  edge_list <- apply(matrix(tetrahedrons[index_matr], ncol = 2, byrow = TRUE), 1, sort)
+  edge_list <- cbind(t(edge_list), rep(seq_len(nrow(tetrahedrons)), each = 6), c(1,3,4,2,5,6))
+  edge_list <- split(edge_list, row(edge_list))
   
   for (level in 2:1){
     bin_list <- vector(mode = "list", length = nrow(nodes))
@@ -702,7 +685,7 @@ create.mesh.3D<- function(nodes, tetrahedrons, order = 1, nodesattributes = NULL
     nodes<-rbind(nodes,midpoints)
     nodesmarkers<-c(nodesmarkers,rep(0,nrow(midpoints)))
     
-    out = list(nodes=nodes, nodesmarkers=nodesmarkers, nodesattributes=nodesattributes,
+    out <- list(nodes=nodes, nodesmarkers=nodesmarkers, nodesattributes=nodesattributes,
                tetrahedrons=tetrahedrons, segments=segments, segmentsmarkers=segmentsmarkers,
                edges=edges, edgesmarkers=edgesmarkers, faces=faces, facesmarkers=facesmarkers,
                neighbors=neighbors, holes=holes, order=order)

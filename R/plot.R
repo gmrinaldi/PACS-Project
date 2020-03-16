@@ -289,7 +289,7 @@ R_plot_volume <- function(FEM,...){
       col<-rowMeans(matrix(FEM$coeff[faces,i],ncol=3,byrow=TRUE))
       col <- (ncolor-1)*(col-min(col))/diff(range(col))+1
       
-      #Note: R is implicitly rounding col for use as an index
+      #Note: R is implicitly rounding col to use it as an index
       col <- p[rep(col,each=3)]
       
       rgl.triangles(nodes[faces,1],nodes[faces,2],nodes[faces,3],col=col,alpha=0.7,...)
