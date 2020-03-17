@@ -445,9 +445,8 @@ R_eval_local.FEM <- function(FEM, locations, element_index)
    v312<-vertices[c(3,1,2),]
    coord_change <- cbind(v231[,1]*v312[,2]-v312[,1]*v231[,2], v231[,2]-v312[,2], v312[,1]-v231[,1])/modJ
    
-   baryc <- rowSums(coord_change[rep.int(1:3,num_points),]*Pgpts[rep(1:num_points,each=3),])
-   baryc <- matrix(baryc,nrow=3)
-   
+   baryc <- coord_change%*%t(Pgpts)
+
    if(FEM$FEMbasis$order==2){
       baryc <- rbind(baryc,4*baryc)*rbind(2*baryc-1,baryc[c(2,3,1),])
       evalmat <- t(baryc) %*% FEM$coeff[triangles[element_index,c(1:3,6,4,5)],]

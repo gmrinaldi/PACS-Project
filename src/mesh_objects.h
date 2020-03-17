@@ -4,11 +4,10 @@
 
 #include "fdaPDE.h"
 
-//Accord the NotValid meaning value
-//const UInt NVAL=std::numeric_limits<UInt>::max();
 
 typedef UInt Id;
 typedef UInt BcId;
+
 
 //!  This class gives some common methods to all mesh objects.
 class Identifier{
@@ -16,8 +15,8 @@ public:
 
 	//! An static const Unisgned Integer.
     /*! Needed to identify the Not Valid Id. */
-	static const UInt NVAL;
-	//Identifier():id_(NVAL),bcId_(NVAL){}
+	static constexpr UInt NVAL=std::numeric_limits<UInt>::max();
+
 	Identifier(UInt id):id_(id),bcId_(NVAL){}
 	Identifier(UInt id, UInt bcId):id_(id),bcId_(bcId){}
 
@@ -36,57 +35,44 @@ public:
 
 
 //!  This class implements a 3D point, the default is z=0 => 2D point
-class Point: public Identifier{
+class Point : public Identifier{
 public:
 
-	UInt ndim;
+	friend std::vector<Real> point_diff(const Point &, const Point &);
 
-	Point(): Identifier(NVAL, NVAL){coord_.resize(3);};
-   	Point(Real x, Real y):Identifier(NVAL, NVAL)
-		{coord_.resize(3);coord_[0]=x; coord_[1]=y; coord_[2]=0;
-			ndim=2;}
-	Point(Real x, Real y, Real z):Identifier(NVAL, NVAL)
-		{coord_.resize(3);coord_[0]=x; coord_[1]=y; coord_[2]=z;
-			ndim=3;}
-	Point(Id id, BcId bcId, Real x, Real y):Identifier(id, bcId)
-		{coord_.resize(3);coord_[0]=x; coord_[1]=y; coord_[2]=0;
-			ndim=2;}
-	Point(Id id, BcId bcId, Real x, Real y, Real z):Identifier(id, bcId)
-		{coord_.resize(3);coord_[0]=x; coord_[1]=y; coord_[2]=z;
-			ndim=3;}
+  Point(Real x, Real y) :
+					Identifier(NVAL, NVAL), coord_({x,y}), ndim(2) {}
+	Point(Real x, Real y, Real z) :
+					Identifier(NVAL, NVAL), coord_({x,y,z}), ndim(3) {}
+	Point(Id id, BcId bcId, Real x, Real y) :
+					Identifier(id, bcId), coord_({x,y}), ndim(2) {}
+	Point(Id id, BcId bcId, Real x, Real y, Real z) :
+					Identifier(id, bcId), coord_({x,y,z}), ndim(3) {}
+
 	void print(std::ostream & out) const;
 	Real operator[](UInt i) const {return coord_[i];}
 private:
 	std::vector<Real> coord_;
-	//std::array<Real, 2> coord_;
+	const UInt ndim;
 };
 
 
 //!  This class implements an Edge, as an objects composed by two 2D points.
-class Edge: public Identifier{
+class Edge : public Identifier{
   public:
     static const UInt NNODES=2;
     static const UInt numSides=1;
     static const UInt myDim=1;
 
-    Edge():Identifier(NVAL, NVAL){points_.resize(2);};
-    Edge(Id id, BcId bcId, const Point& start,const Point& end):Identifier(id, bcId)
-    {points_.resize(2); points_[0] = start; points_[1] = end;}
+    Edge(Id id, BcId bcId, const Point& start, const Point& end) :
+					Identifier(id, bcId), points_({start,end}) {}
 
     void print(std::ostream & out) const;
-    Point getFirst() const {return points_[0];}
-    Point getEnd() const {return points_[1];}
-
 
     Point operator[](UInt i) const {return points_[i];}
 
  private:
-	// I don't store directly a eigen matrix because of the limitations
-	// of the current problems of alignement (see eigen 3.0 documentation)
-	// It is not very efficient and should be changed asap
-    //std::array<Point, NNODES> points_;
     std::vector<Point> points_;
-    //std::array<std::reference_wrapper<Point>, NNODES> M_points;
   };
 
 //! This is an abstract template class called Element
@@ -98,7 +84,7 @@ class Edge: public Identifier{
  *
 */
 
-template <UInt NNODES,UInt mydim, UInt ndim>
+template <UInt NNODES, UInt mydim, UInt ndim>
 class Element : public Identifier {
 } ;
 
@@ -126,12 +112,9 @@ public:
   static const UInt numSides=3;
 	static const UInt myDim=2;
 
-    //! This constructor creates an "empty" Element, with an Id Not Valid
-	Element():Identifier(NVAL){points_.resize(NNODES);}
-
 	//! This constructor creates an Element, given its Id and an std array with the three object Point the will define the Element
-    Element(Id id, const std::vector<Point>& points) : Identifier(id),points_(points)
-	{ this->computeProperties(); }
+    Element(Id id, const std::vector<Point>& points) :
+					Identifier(id), points_(points) {this->computeProperties();}
 
 	//! Overloading of the operator [],  taking the Node number and returning a node as Point object.
     /*!
@@ -182,7 +165,6 @@ public:
 	void print(std::ostream & out) const;
 
 private:
-	//std::array<Point, NNODES> points_;
 	std::vector<Point> points_;
 	Eigen::Matrix<Real,2,2> M_J_;
 	Eigen::Matrix<Real,2,2> M_invJ_;
@@ -226,16 +208,13 @@ template <UInt NNODES>
 class Element<NNODES,2,3> : public Identifier {
 public:
 	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-    static const UInt numVertices=3;
-    static const UInt numSides=3;
+  static const UInt numVertices=3;
+  static const UInt numSides=3;
 	static const UInt myDim=2;
 
-    //! This constructor creates an "empty" Element, with an Id Not Valid
-	Element():Identifier(NVAL){points_.resize(NNODES);}
-
 	//! This constructor creates an Element, given its Id and an std array with the three object Point the will define the Element
-    Element(Id id, const std::vector<Point> points) : Identifier(id),points_(points)
-	{ this->computeProperties(); }
+  Element(Id id, const std::vector<Point> points) :
+					Identifier(id), points_(points) {this->computeProperties();}
 
 	//! Overloading of the operator [],  taking the Node number and returning a node as Point object.
     /*!
@@ -290,16 +269,14 @@ template <UInt NNODES>
 class Element<NNODES,3,3> : public Identifier {
 public:
 	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-    static const UInt numVertices=4;
-    static const UInt numSides=3;
-    static const UInt myDim=3;
+  static const UInt numVertices=4;
+  static const UInt numSides=3;
+  static const UInt myDim=3;
 
-    //! This constructor creates an "empty" Tetrahedron, with an Id Not Valid
-	Element():Identifier(NVAL){points_.resize(NNODES);}
 
 	//! This constructor creates a Tetrahedron, given its Id and an std array with the three object Point the will define the Tetrahedron
-    Element(Id id, const std::vector<Point> points) : Identifier(id),points_(points)
-	{ this->computeProperties(); }
+  Element(Id id, const std::vector<Point> points) :
+					Identifier(id),points_(points) {this->computeProperties();}
 
 	//! Overloading of the operator [],  taking the Node number and returning a node as Point object.
     /*!
@@ -319,7 +296,7 @@ public:
 	const Eigen::Matrix<Real,3,3>& getM_J() const {return M_J_;}
 	const Eigen::Matrix<Real,3,3>& getM_invJ() const {return M_invJ_;}
 	const Eigen::Matrix<Real,3,3>& getMetric() const {return metric_;} //inv(MJ^t*MJ)
-	Real getVolume() const{return Volume_;};
+	Real getVolume() const{return (std::sqrt(detJ_)/6);};
 
 	Eigen::Matrix<Real,4,1> getBaryCoordinates(const Point& point) const;
 
@@ -344,7 +321,6 @@ private:
 	Eigen::Matrix<Real,3,3> M_invJ_;
 	Eigen::Matrix<Real,3,3> metric_; //inv(GJ)
 	Real detJ_;
-	Real Volume_;
 	void computeProperties();
 };
 
