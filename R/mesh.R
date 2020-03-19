@@ -626,10 +626,10 @@ create.mesh.3D<- function(nodes, tetrahedrons, order = 1, nodesattributes = NULL
   nodesmarkers <- 1:nrow(nodes) %in% faces[facesmarkers]
   
   #Same for edges
-  #Edges are numbered in this order: (1,2),(2,3),(1,3),(1,4),(2,4),(3,4)
+  #Edges are numbered in this order: (1,2),(1,3),(1,4),(2,3),(3,4),(2,4)
   index_matr <- cbind(rep(seq_len(nrow(tetrahedrons)),each=12), c(1,2,1,3,1,4,2,3,2,4,3,4))
   edge_list <- apply(matrix(tetrahedrons[index_matr], ncol = 2, byrow = TRUE), 1, sort)
-  edge_list <- cbind(t(edge_list), rep(seq_len(nrow(tetrahedrons)), each = 6), c(1,3,4,2,5,6))
+  edge_list <- cbind(t(edge_list), rep(seq_len(nrow(tetrahedrons)), each = 6), c(1,2,3,4,6,5))
   edge_list <- split(edge_list, row(edge_list))
   
   for (level in 2:1){

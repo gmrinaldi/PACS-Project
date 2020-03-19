@@ -7,7 +7,6 @@
 
 #include "mesh_objects.h"
 
-
 void Point::print(std::ostream & out) const
 {
 	out<<"Point -"<< id_ <<"- "<<"("<<coord_[0]<<","<<coord_[1]<<","<<coord_[2]<<")"<<std::endl<<"------"<<std::endl;
