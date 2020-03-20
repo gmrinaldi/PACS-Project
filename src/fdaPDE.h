@@ -16,6 +16,7 @@
 //#include <iomanip>
 #include <limits>
 #include <vector>
+#include <array>
 
 // For debugging purposes
 //#include <Eigen/StdVector>

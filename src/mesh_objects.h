@@ -8,14 +8,10 @@ typedef UInt Id;
 typedef UInt BcId;
 
 //Simple function to evaluate factorial at compile time
-//Needed for getVolume member of Element
+//Needed for getVolume/getArea member of Element
 constexpr int factorial(int n) {
     return n ? (n * factorial(n - 1)) : 1;
 }
-
-
-// //Define the NotValid meaning value
-// constexpr UInt Identifier::NVAL=std::numeric_limits<UInt>::max();
 
 
 //!  This class gives some common methods to all mesh objects.
@@ -66,12 +62,12 @@ private:
 };
 
 
-//!  This class implements an Edge, as an objects composed by two 2D points.
+//!  This class implements an Edge, as an objects composed by two points.
 class Edge : public Identifier{
   public:
-    static const UInt NNODES=2;
-    static const UInt numSides=1;
-    static const UInt myDim=1;
+    static constexpr UInt NNODES=2;
+    static constexpr UInt numSides=1;
+    static constexpr UInt myDim=1;
 
     Edge(Id id, BcId bcId, const Point& start, const Point& end) :
 					Identifier(id, bcId), points_({start,end}) {}
@@ -81,7 +77,7 @@ class Edge : public Identifier{
     Point operator[](UInt i) const {return points_[i];}
 
  private:
-    const std::vector<Point> points_;
+    const std::array<Point,2> points_;
   };
 
 //! This is an abstract template class called Element
@@ -115,65 +111,45 @@ template <UInt NNODES, UInt mydim, UInt ndim>
 class Element : public Identifier {
 public:
 	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-	static const UInt numVertices=mydim+1;
-	static const UInt numSides=mydim*(mydim+1)/2;
-	static const UInt myDim=mydim;
+	static constexpr UInt numVertices=mydim+1;
+	static constexpr UInt numSides=mydim*(mydim+1)/2;
+	static constexpr UInt myDim=mydim;
+
+
+  //! This constructor creates an "empty" Element, with an Id Not Valid
+  	Element():Identifier(NVAL) {}
 
 	//! This constructor creates an Element, given its Id and an std array with the three object Point the will define the Element
-		Element(Id id, const std::vector<Point>& points) :
+		Element(Id id, const std::array<Point,NNODES>& points) :
 					Identifier(id), points_(points) {this->computeProperties();}
 
 	//! Overloading of the operator [],  taking the Node number and returning a node as Point object.
-		/*!
-		 * For node numbering convention see:
-			\param i an integer argument.
-			\return the Point object
-		*/
 	Point operator[](UInt i) const {return points_[i];}
-
-	//! A member that computes the barycentric coordinates.
-		/*!
-			\param point a Point object
-			\return The three baricentric coordinates of the point
-		*/
 
 	Real getDetJ() const {return detJ_;}
 	const Eigen::Matrix<Real,ndim,mydim>& getM_J() const {return M_J_;}
 	const Eigen::Matrix<Real,mydim,ndim>& getM_invJ() const {return M_invJ_;}
 	const Eigen::Matrix<Real,mydim,mydim>& getMetric() const {return metric_;}
 
-	//! A member returning the area of the finite element
-			/*!
-				\return a Real value representing the area of the triangle from which we updated the element
-				\sa  updateElement(Element<Integrator::NNODES> t)
-			*/
-	Real getVolume() const {return std::abs(detJ_)/factorial(ndim);}
+	//! A member returning the area/volume of the element
+  // Note: both are needed for compatibility issues with previous implementation
+	Real getArea() const {return std::abs(detJ_)/factorial(ndim);}
+  Real getVolume() const {return std::abs(detJ_)/factorial(ndim);}
 
+  //! A member that computes the barycentric coordinates.
 	Eigen::Matrix<Real,mydim+1,1> getBaryCoordinates(const Point& point) const;
 
 	//! A member that tests if a Point is located inside an Element.
-		/*!
-			\param point a Point object.
-			\return True if the point is inside the triangle
-		*/
 	bool isPointInside(const Point& point) const;
 
-	//! A memeber that verifies which edge separates the Triangle from a Point.
-		/*!
-			\param point a Point object.
-			\return The number of the Edge that separates the point
-			from the triangle and -1 if the point is inside the triangle.
-		*/
+	//! A member that verifies which edge/face separates the Triangle/Tetrahedron from a Point.
 	int getPointDirection(const Point& point) const;
 
 	//! A member that prints the main properties of the triangle
-		/*!
-			\param out a std::outstream.
-		*/
 	void print(std::ostream & out) const;
 
 private:
-	const std::vector<Point> points_;
+	std::array<Point,NNODES> points_;
 	Eigen::Matrix<Real,ndim,mydim> M_J_;
 	Eigen::Matrix<Real,mydim,ndim> M_invJ_;
 	Eigen::Matrix<Real,mydim,mydim> metric_;
@@ -202,67 +178,40 @@ template <UInt NNODES>
 class Element<NNODES, 2, 3> : public Identifier {
 public:
 	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-	static const UInt numVertices=3;
-	static const UInt numSides=3;
-	static const UInt myDim=2;
+	static constexpr UInt numVertices=3;
+	static constexpr UInt numSides=3;
+	static constexpr UInt myDim=2;
+
+  //! This constructor creates an "empty" Element, with an Id Not Valid
+  	Element():Identifier(NVAL) {}
 
 	//! This constructor creates an Element, given its Id and an std array with the three object Point the will define the Element
-		Element(Id id, const std::vector<Point>& points) :
+		Element(Id id, const std::array<Point,NNODES>& points) :
 					Identifier(id), points_(points) {this->computeProperties();}
 
 	//! Overloading of the operator [],  taking the Node number and returning a node as Point object.
-		/*!
-		 * For node numbering convention see:
-			\param i an integer argument.
-			\return the Point object
-		*/
 	Point operator[](UInt i) const {return points_[i];}
-
-	//! A member that computes the barycentric coordinates.
-		/*!
-			\param point a Point object
-			\return The three baricentric coordinates of the point
-		*/
 
 	Real getDetJ() const {return detJ_;}
 	const Eigen::Matrix<Real,3,2>& getM_J() const {return M_J_;}
-	const Eigen::Matrix<Real,2,3>& getM_pseudo_invJ() const {return M_pseudo_invJ_;}
+	const Eigen::Matrix<Real,2,3>& getM_invJ() const {return M_invJ_;} //actually returns the pseudoinverse of M_J_!
 	const Eigen::Matrix<Real,2,2>& getMetric() const {return metric_;}
 
-	//! A member returning the area of the finite element
-			/*!
-				\return a Real value representing the area of the triangle from which we updated the element
-				\sa  updateElement(Element<Integrator::NNODES> t)
-			*/
-	Real getVolume() const {return std::sqrt(detJ_)/2;}
+	Real getArea() const {return std::sqrt(detJ_)/2;}
 
+  //! A member that computes the barycentric coordinates.
 	Eigen::Matrix<Real,3,1> getBaryCoordinates(const Point& point) const;
 
 	//! A member that tests if a Point is located inside an Element.
-		/*!
-			\param point a Point object.
-			\return True if the point is inside the triangle
-		*/
 	bool isPointInside(const Point& point) const;
 
-	//! A memeber that verifies which edge separates the Triangle from a Point.
-		/*!
-			\param point a Point object.
-			\return The number of the Edge that separates the point
-			from the triangle and -1 if the point is inside the triangle.
-		*/
-	int getPointDirection(const Point& point) const;
-
 	//! A member that prints the main properties of the triangle
-		/*!
-			\param out a std::outstream.
-		*/
 	void print(std::ostream & out) const;
 
 private:
-	const std::vector<Point> points_;
+	const std::array<Point,NNODES> points_;
 	Eigen::Matrix<Real,3,2> M_J_;
-	Eigen::Matrix<Real,2,3> M_pseudo_invJ_;
+	Eigen::Matrix<Real,2,3> M_invJ_; //actually this is the pseudoinverse of M_J_!
 	Eigen::Matrix<Real,2,2> metric_;
 	Real detJ_;
 	void computeProperties();
@@ -292,13 +241,6 @@ inline Real evaluate_point<6,2,2>(const Element<6,2,2>& t, const Point& point, c
 }
 
 
-
-/*! THIS COMMENT COMES FROM BERAHA, COSMO: in this case, the implementation is not as trivial
- first solve the linear system (p-p0) = (p1-p0)*alpha + (p2-p0)*beta + N*gamma
- where p0,p1,p2 are the vertices of the triangle, p is the point
- (observe that, if the point is inside the triangle, gamma=0)
- then the solution u(p) = u(p0) + alpa*(u(p1) - u(p0) + beta*(u(p2)-u(p0))
- */
 
  // Full specialization for order 2 in 2.5D
 template <>
@@ -332,7 +274,7 @@ inline Real evaluate_point<10,3,3>(const Element<10,3,3>& t, const Point& point,
 }
 
 
-// This covers the order 1 case for 2D and 3D
+// This covers the order 1 case
 template <UInt Nodes,UInt mydim, UInt ndim>
 inline Eigen::Matrix<Real,ndim,1> evaluate_der_point(const Element<Nodes,mydim,ndim>& t, const Point& point, const Eigen::Matrix<Real,Nodes,1>& coefficients)
 {
@@ -342,18 +284,6 @@ inline Eigen::Matrix<Real,ndim,1> evaluate_der_point(const Element<Nodes,mydim,n
 
   return(t.getM_invJ().transpose()*B1*coefficients);
 }
-
-// Full specialization for order 1 in 2.5D
-template <>
-inline Eigen::Matrix<Real,3,1> evaluate_der_point(const Element<3,2,3>& t, const Point& point, const Eigen::Matrix<Real,3,1>& coefficients)
-{
-  Eigen::Matrix<Real,2,3> B1;
-  B1.col(0).setConstant(-1);
-  B1.rightCols(2).setIdentity();
-
-  return(t.getM_pseudo_invJ().transpose()*B1*coefficients);
-}
-
 
 
 template <>
@@ -375,7 +305,7 @@ inline Eigen::Matrix<Real,3,1> evaluate_der_point<6,2,3>(const Element<6,2,3>& t
 	Eigen::Matrix<Real,2,6> B2;
   B2 << 1-bar4(0), bar4(1)-1,           0, bar4(2),        -bar4(2), bar4(0)-bar4(1),
         1-bar4(0),           0, bar4(2)-1, bar4(1), bar4(0)-bar4(2),        -bar4(1);
-	return(t.getM_pseudo_invJ().transpose()*B2*coefficients);
+	return(t.getM_invJ().transpose()*B2*coefficients);
 }
 
 // Full specialization for order 2 in 3D

@@ -239,7 +239,6 @@ R_plot_manifold <- function(FEM, ...){
    coeff <- FEM$coeff
    
    p <- jet.col(n=128,alpha=0.8)
-   #p <- colorRampPalette(c("#0E1E44","#3E6DD8","#68D061","#ECAF53", "#EB5F5F","#E11F1C"))(128)
    palette(p)
    ncolor <- length(p)
    
@@ -256,6 +255,7 @@ R_plot_manifold <- function(FEM, ...){
       
       col <- coeff[triangles,i]
       col <- (ncolor-1)*(col-min(col))/diff(range(col))+1
+      col <- p[col]
       
       rgl.triangles(nodes[triangles,1], nodes[triangles,2],
                     nodes[triangles,3], color = col,...)
@@ -268,11 +268,14 @@ R_plot_manifold <- function(FEM, ...){
 
 
 R_plot_volume <- function(FEM,...){
+   # 
    nodes <- FEM$FEMbasis$mesh$nodes
-   faces <- as.vector(t(FEM$FEMbasis$mesh$faces))
+   faces <- as.vector(t(FEM$FEMbasis$mesh$faces[as.logical(FEM$FEMbasis$mesh$facesmarkers),]))
+   edges <- as.vector(t(FEM$FEMbasis$mesh$edges[as.logical(FEM$FEMbasis$mesh$edgesmarkers),]))
+   coeff <- FEM$coeff
    
    p <- jet.col(n=128,alpha=0.8)
-   #p <- colorRampPalette(c("#0E1E44","#3E6DD8","#68D061","#ECAF53", "#EB5F5F","#E11F1C"))(128)
+   palette(p)
    ncolor <- length(p)
    
    nplots <- ncol(FEM$coeff)
@@ -286,14 +289,14 @@ R_plot_volume <- function(FEM,...){
       rgl.pop("lights")
       light3d(specular="black")
       
-      col<-rowMeans(matrix(FEM$coeff[faces,i],ncol=3,byrow=TRUE))
+      col <- coeff[faces,i]
       col <- (ncolor-1)*(col-min(col))/diff(range(col))+1
+      col <- p[col]
       
-      #Note: R is implicitly rounding col to use it as an index
-      col <- p[rep(col,each=3)]
-      
-      rgl.triangles(nodes[faces,1],nodes[faces,2],nodes[faces,3],col=col,alpha=0.7,...)
-      
+      rgl.triangles(nodes[faces,1], nodes[faces,2],
+                    nodes[faces,3], color = col,...)
+      rgl.lines(nodes[edges,1], nodes[edges,2], nodes[edges,3],
+                color = "black",...)
       aspect3d("iso")
       rgl.viewpoint(0,-45)
    }

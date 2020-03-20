@@ -95,7 +95,7 @@ void Element<NNODES,2,3>::computeProperties()
 	Eigen::Matrix<Real,2,2> G_J_=M_J_.transpose()*M_J_;
 	detJ_ = G_J_.determinant();
 	metric_ = G_J_.inverse();
-	M_pseudo_invJ_ = metric_ * M_J_.transpose();
+	M_invJ_ = metric_ * M_J_.transpose();
 }
 
 template <UInt NNODES>
@@ -106,7 +106,7 @@ Eigen::Matrix<Real,3,1> Element<NNODES,2,3>::getBaryCoordinates(const Point& poi
 
 	std::vector<Real> diff = point_diff(point, t[0]);
 
-	lambda.tail<2>() = M_pseudo_invJ_ * Eigen::Map<Eigen::Matrix<Real,3,1> >(diff.data());
+	lambda.tail<2>() = M_invJ_ * Eigen::Map<Eigen::Matrix<Real,3,1> >(diff.data());
 
   lambda(0) = 1 - lambda.tail<2>().sum();
 
@@ -147,25 +147,6 @@ void Element<NNODES,2,3>::print(std::ostream & out) const
 	for (UInt i=0; i<NNODES; ++i)
 		out<<points_[i].getId()<<"  ";
 	out<<std::endl;
-}
-
-// This should be right?
-template <UInt NNODES>
-int Element<NNODES,2,3>::getPointDirection(const Point& point) const
-{
-	Real eps = std::numeric_limits<Real>::epsilon(),
-		 tolerance = 10 * eps;
-
-	if (isPointInside(point))
-			return -1;
-
-	Eigen::Matrix<Real,3,1> lambda = getBaryCoordinates(point);
-
-	//Find the minimum coordinate (if negative stronger straight to the point searched)
-	int min_index;
-	lambda.minCoeff(&min_index);
-
-	return min_index;
 }
 
 
