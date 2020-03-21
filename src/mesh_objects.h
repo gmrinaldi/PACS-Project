@@ -38,46 +38,80 @@ public:
 	BcId bcId_;
 };
 
-
-//!  This class implements a 3D point, the default is z=0 => 2D point
+// Abstract class point
+// Doesn't allow creation of points in dimension higher than 3
+template<UInt ndim>
 class Point : public Identifier{
-public:
-
-	friend std::vector<Real> point_diff(const Point &, const Point &);
-
-  Point(Real x, Real y) :
-					Identifier(NVAL, NVAL), coord_({x,y}), ndim(2) {}
-	Point(Real x, Real y, Real z) :
-					Identifier(NVAL, NVAL), coord_({x,y,z}), ndim(3) {}
-	Point(Id id, BcId bcId, Real x, Real y) :
-					Identifier(id, bcId), coord_({x,y}), ndim(2) {}
-	Point(Id id, BcId bcId, Real x, Real y, Real z) :
-					Identifier(id, bcId), coord_({x,y,z}), ndim(3) {}
-
-	void print(std::ostream & out) const;
-	Real operator[](UInt i) const {return coord_[i];}
-private:
-	const std::vector<Real> coord_;
-	const UInt ndim;
+  static_assert(ndim<=3,
+                "Trying to create a Point object in dimension>3; see mesh_objects.h");
 };
 
+// Helper function template declaration
+template <UInt ndim>
+std::array<Real, ndim> point_diff(const Point<ndim> &, const Point<ndim> &);
+
+// 2D point
+template<>
+class Point<2> : public Identifier{
+public:
+  friend std::array<Real, 2> point_diff(const Point<2> &, const Point<2> &);
+
+  Point(): Identifier(NVAL, NVAL) {};
+  Point(Real x, Real y) :
+        Identifier(NVAL, NVAL), coord_({x,y}) {}
+  Point(Id id, BcId bcId, Real x, Real y) :
+        Identifier(id, bcId), coord_({x,y}) {}
+
+  Real operator[](UInt i) const {return coord_[i];}
+
+private:
+  std::array<Real,2> coord_;
+};
+
+// 3D point
+template<>
+class Point<3> : public Identifier{
+public:
+  friend std::array<Real, 3> point_diff(const Point<3> &, const Point<3> &);
+
+  Point(): Identifier(NVAL, NVAL) {};
+  Point(Real x, Real y, Real z) :
+  					Identifier(NVAL, NVAL), coord_({x,y,z}) {}
+  Point(Id id, BcId bcId, Real x, Real y, Real z) :
+  					Identifier(id, bcId), coord_({x,y,z}) {}
+
+  Real operator[](UInt i) const {return coord_[i];}
+
+private:
+  std::array<Real,3> coord_;
+};
+
+// Helper function template definition
+template<UInt ndim>
+std::array<Real,ndim> point_diff(const Point<ndim> &lhs, const Point<ndim> &rhs){
+		std::array<Real,ndim> diff;
+		for (int i=0; i<ndim; ++i)
+				diff[i]=lhs[i]-rhs[i];
+		return diff;
+};
 
 //!  This class implements an Edge, as an objects composed by two points.
+template <UInt ndim>
 class Edge : public Identifier{
   public:
     static constexpr UInt NNODES=2;
     static constexpr UInt numSides=1;
     static constexpr UInt myDim=1;
 
-    Edge(Id id, BcId bcId, const Point& start, const Point& end) :
+    Edge(Id id, BcId bcId, const Point<ndim>& start, const Point<ndim>& end) :
 					Identifier(id, bcId), points_({start,end}) {}
 
     void print(std::ostream & out) const;
 
-    Point operator[](UInt i) const {return points_[i];}
+    Point<ndim> operator[](UInt i) const {return points_[i];}
 
  private:
-    const std::array<Point,2> points_;
+    const std::array<Point<ndim>,2> points_;
   };
 
 //! This is an abstract template class called Element
@@ -120,11 +154,11 @@ public:
   	Element():Identifier(NVAL) {}
 
 	//! This constructor creates an Element, given its Id and an std array with the three object Point the will define the Element
-		Element(Id id, const std::array<Point,NNODES>& points) :
+		Element(Id id, const std::array<Point<ndim>,NNODES>& points) :
 					Identifier(id), points_(points) {this->computeProperties();}
 
 	//! Overloading of the operator [],  taking the Node number and returning a node as Point object.
-	Point operator[](UInt i) const {return points_[i];}
+	Point<ndim> operator[](UInt i) const {return points_[i];}
 
 	Real getDetJ() const {return detJ_;}
 	const Eigen::Matrix<Real,ndim,mydim>& getM_J() const {return M_J_;}
@@ -137,19 +171,19 @@ public:
   Real getVolume() const {return std::abs(detJ_)/factorial(ndim);}
 
   //! A member that computes the barycentric coordinates.
-	Eigen::Matrix<Real,mydim+1,1> getBaryCoordinates(const Point& point) const;
+	Eigen::Matrix<Real,mydim+1,1> getBaryCoordinates(const Point<ndim>& point) const;
 
 	//! A member that tests if a Point is located inside an Element.
-	bool isPointInside(const Point& point) const;
+	bool isPointInside(const Point<ndim>& point) const;
 
 	//! A member that verifies which edge/face separates the Triangle/Tetrahedron from a Point.
-	int getPointDirection(const Point& point) const;
+	int getPointDirection(const Point<ndim>& point) const;
 
 	//! A member that prints the main properties of the triangle
 	void print(std::ostream & out) const;
 
 private:
-	std::array<Point,NNODES> points_;
+	std::array<Point<ndim>,NNODES> points_;
 	Eigen::Matrix<Real,ndim,mydim> M_J_;
 	Eigen::Matrix<Real,mydim,ndim> M_invJ_;
 	Eigen::Matrix<Real,mydim,mydim> metric_;
@@ -186,11 +220,11 @@ public:
   	Element():Identifier(NVAL) {}
 
 	//! This constructor creates an Element, given its Id and an std array with the three object Point the will define the Element
-		Element(Id id, const std::array<Point,NNODES>& points) :
+		Element(Id id, const std::array<Point<3>,NNODES>& points) :
 					Identifier(id), points_(points) {this->computeProperties();}
 
 	//! Overloading of the operator [],  taking the Node number and returning a node as Point object.
-	Point operator[](UInt i) const {return points_[i];}
+	Point<3> operator[](UInt i) const {return points_[i];}
 
 	Real getDetJ() const {return detJ_;}
 	const Eigen::Matrix<Real,3,2>& getM_J() const {return M_J_;}
@@ -200,16 +234,16 @@ public:
 	Real getArea() const {return std::sqrt(detJ_)/2;}
 
   //! A member that computes the barycentric coordinates.
-	Eigen::Matrix<Real,3,1> getBaryCoordinates(const Point& point) const;
+	Eigen::Matrix<Real,3,1> getBaryCoordinates(const Point<3>& point) const;
 
 	//! A member that tests if a Point is located inside an Element.
-	bool isPointInside(const Point& point) const;
+	bool isPointInside(const Point<3>& point) const;
 
 	//! A member that prints the main properties of the triangle
 	void print(std::ostream & out) const;
 
 private:
-	const std::array<Point,NNODES> points_;
+	const std::array<Point<3>,NNODES> points_;
 	Eigen::Matrix<Real,3,2> M_J_;
 	Eigen::Matrix<Real,2,3> M_invJ_; //actually this is the pseudoinverse of M_J_!
 	Eigen::Matrix<Real,2,2> metric_;
@@ -221,7 +255,7 @@ private:
 
 // This covers all the order 1 cases!
 template <UInt Nodes, UInt mydim, UInt ndim>
-inline Real evaluate_point(const Element<Nodes,mydim,ndim>& t, const Point& point, const Eigen::Matrix<Real,Nodes,1>& coefficients)
+inline Real evaluate_point(const Element<Nodes,mydim,ndim>& t, const Point<ndim>& point, const Eigen::Matrix<Real,Nodes,1>& coefficients)
 {
   return(coefficients.dot(t.getBaryCoordinates(point)));
 	return 0;
@@ -229,7 +263,7 @@ inline Real evaluate_point(const Element<Nodes,mydim,ndim>& t, const Point& poin
 
 // Full specialization for order 2 in 2D
 template <>
-inline Real evaluate_point<6,2,2>(const Element<6,2,2>& t, const Point& point, const Eigen::Matrix<Real,6,1>& coefficients)
+inline Real evaluate_point<6,2,2>(const Element<6,2,2>& t, const Point<2>& point, const Eigen::Matrix<Real,6,1>& coefficients)
 {
 	Eigen::Matrix<Real,3,1> lambda = t.getBaryCoordinates(point);
   return( coefficients[0]*lambda[0]*(2*lambda[0] - 1) +
@@ -244,7 +278,7 @@ inline Real evaluate_point<6,2,2>(const Element<6,2,2>& t, const Point& point, c
 
  // Full specialization for order 2 in 2.5D
 template <>
-inline Real evaluate_point<6,2,3>(const Element<6,2,3>& t, const Point& point, const Eigen::Matrix<Real,6,1>& coefficients)
+inline Real evaluate_point<6,2,3>(const Element<6,2,3>& t, const Point<3>& point, const Eigen::Matrix<Real,6,1>& coefficients)
 {
 	Eigen::Matrix<Real,3,1> lambda = t.getBaryCoordinates(point);
 	return( coefficients[0]*lambda[0]*(2*lambda[0] - 1) +
@@ -258,7 +292,7 @@ inline Real evaluate_point<6,2,3>(const Element<6,2,3>& t, const Point& point, c
 // Full specialization for order 2 in 3D
 // MEMO: this works assuming edges are ordered like so: (1,2), (1,3), (1,4), (2,3), (3,4), (2,4)
 template <>
-inline Real evaluate_point<10,3,3>(const Element<10,3,3>& t, const Point& point, const Eigen::Matrix<Real,10,1>& coefficients)
+inline Real evaluate_point<10,3,3>(const Element<10,3,3>& t, const Point<3>& point, const Eigen::Matrix<Real,10,1>& coefficients)
 {
  Eigen::Matrix<Real,4,1> lambda = t.getBaryCoordinates(point);
  return( coefficients[0]*lambda[0]*(2*lambda[0] - 1) +
@@ -276,7 +310,7 @@ inline Real evaluate_point<10,3,3>(const Element<10,3,3>& t, const Point& point,
 
 // This covers the order 1 case
 template <UInt Nodes,UInt mydim, UInt ndim>
-inline Eigen::Matrix<Real,ndim,1> evaluate_der_point(const Element<Nodes,mydim,ndim>& t, const Point& point, const Eigen::Matrix<Real,Nodes,1>& coefficients)
+inline Eigen::Matrix<Real,ndim,1> evaluate_der_point(const Element<Nodes,mydim,ndim>& t, const Point<ndim>& point, const Eigen::Matrix<Real,Nodes,1>& coefficients)
 {
   Eigen::Matrix<Real,mydim,mydim+1> B1;
   B1.col(0).setConstant(-1);
@@ -287,7 +321,7 @@ inline Eigen::Matrix<Real,ndim,1> evaluate_der_point(const Element<Nodes,mydim,n
 
 
 template <>
-inline Eigen::Matrix<Real,2,1> evaluate_der_point<6,2,2>(const Element<6,2,2>& t, const Point& point, const Eigen::Matrix<Real,6,1>& coefficients)
+inline Eigen::Matrix<Real,2,1> evaluate_der_point<6,2,2>(const Element<6,2,2>& t, const Point<2>& point, const Eigen::Matrix<Real,6,1>& coefficients)
 {
   // Multiply by 4 for convenience in assemblying B2
 	Eigen::Matrix<Real,3,1> bar4 = 4*t.getBaryCoordinates(point);
@@ -298,7 +332,7 @@ inline Eigen::Matrix<Real,2,1> evaluate_der_point<6,2,2>(const Element<6,2,2>& t
 }
 
 template <>
-inline Eigen::Matrix<Real,3,1> evaluate_der_point<6,2,3>(const Element<6,2,3>& t, const Point& point, const Eigen::Matrix<Real,6,1>& coefficients)
+inline Eigen::Matrix<Real,3,1> evaluate_der_point<6,2,3>(const Element<6,2,3>& t, const Point<3>& point, const Eigen::Matrix<Real,6,1>& coefficients)
 {
   // Multiply by 4 for convenience in assemblying B2
 	Eigen::Matrix<Real,3,1> bar4 = 4*t.getBaryCoordinates(point);
@@ -311,7 +345,7 @@ inline Eigen::Matrix<Real,3,1> evaluate_der_point<6,2,3>(const Element<6,2,3>& t
 // Full specialization for order 2 in 3D
 // MEMO: this works assuming edges are ordered like so: (1,2), (1,3), (1,4), (2,3), (3,4), (2,4)
 template <>
-inline Eigen::Matrix<Real,3,1> evaluate_der_point<10,3,3>(const Element<10,3,3>& t, const Point& point, const Eigen::Matrix<Real,10,1>& coefficients)
+inline Eigen::Matrix<Real,3,1> evaluate_der_point<10,3,3>(const Element<10,3,3>& t, const Point<3>& point, const Eigen::Matrix<Real,10,1>& coefficients)
 {
   // Multiply by 4 for convenience in assemblying B2
 	Eigen::Matrix<Real,4,1> bar4 = 4*t.getBaryCoordinates(point);

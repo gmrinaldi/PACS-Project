@@ -7,10 +7,10 @@ template <UInt NNODES, UInt mydim, UInt ndim>
 void Element<NNODES,mydim,ndim>::computeProperties()
 {
 	Element<NNODES,mydim,ndim> &t = *this;
-	std::vector<Real> diff;
+	std::array<Real,ndim> diff;
 
 	for (int i=0; i<mydim; ++i){
-			diff=point_diff(t[i+1],t[0]);
+			diff=point_diff<ndim>(t[i+1],t[0]);
 			M_J_.col(i) = Eigen::Map<Eigen::Matrix<Real,ndim,1> >(diff.data());
 	}
 	// NOTE: for small (not bigger than 4x4) matrices eigen directly calculates
@@ -21,12 +21,12 @@ void Element<NNODES,mydim,ndim>::computeProperties()
 }
 
 template <UInt NNODES, UInt mydim, UInt ndim>
-Eigen::Matrix<Real,mydim+1,1> Element<NNODES,mydim,ndim>::getBaryCoordinates(const Point& point) const
+Eigen::Matrix<Real,mydim+1,1> Element<NNODES,mydim,ndim>::getBaryCoordinates(const Point<ndim>& point) const
 {
 	Element<NNODES,mydim,ndim> t = *this;
 	Eigen::Matrix<Real,mydim+1,1> lambda;
 
-	std::vector<Real> diff = point_diff(point, t[0]);
+	std::array<Real,ndim> diff = point_diff<ndim>(point, t[0]);
 
 	lambda.tail(mydim) = M_invJ_ * Eigen::Map<Eigen::Matrix<Real,ndim,1> >(diff.data());
 
@@ -38,7 +38,7 @@ Eigen::Matrix<Real,mydim+1,1> Element<NNODES,mydim,ndim>::getBaryCoordinates(con
 
 //Primary template member definition
 template <UInt NNODES, UInt mydim, UInt ndim>
-bool Element<NNODES,mydim,ndim>::isPointInside(const Point& point) const
+bool Element<NNODES,mydim,ndim>::isPointInside(const Point<ndim>& point) const
 {
 	Real eps = 	std::numeric_limits<Real>::epsilon(),
 		 tolerance = 10 * eps;
@@ -59,7 +59,7 @@ void Element<NNODES,mydim,ndim>::print(std::ostream & out) const
 }
 
 template <UInt NNODES, UInt mydim, UInt ndim>
-int Element<NNODES,mydim,ndim>::getPointDirection(const Point& point) const
+int Element<NNODES,mydim,ndim>::getPointDirection(const Point<ndim>& point) const
 {
 	Real eps = std::numeric_limits<Real>::epsilon(),
 		 tolerance = 10 * eps;
@@ -82,10 +82,10 @@ template <UInt NNODES>
 void Element<NNODES,2,3>::computeProperties()
 {
 	Element<NNODES,2,3> &t = *this;
-	std::vector<Real> diff;
+	std::array<Real,3> diff;
 
 	for (int i=0; i<2; ++i){
-			diff=point_diff(t[i+1],t[0]);
+			diff=point_diff<3>(t[i+1],t[0]);
 			M_J_.col(i) = Eigen::Map<Eigen::Matrix<Real,3,1> >(diff.data());
 	}
 
@@ -99,12 +99,12 @@ void Element<NNODES,2,3>::computeProperties()
 }
 
 template <UInt NNODES>
-Eigen::Matrix<Real,3,1> Element<NNODES,2,3>::getBaryCoordinates(const Point& point) const
+Eigen::Matrix<Real,3,1> Element<NNODES,2,3>::getBaryCoordinates(const Point<3>& point) const
 {
 	Element<NNODES,2,3> t = *this;
 	Eigen::Matrix<Real,3,1> lambda;
 
-	std::vector<Real> diff = point_diff(point, t[0]);
+	std::array<Real,3> diff = point_diff<3>(point, t[0]);
 
 	lambda.tail<2>() = M_invJ_ * Eigen::Map<Eigen::Matrix<Real,3,1> >(diff.data());
 
@@ -115,7 +115,7 @@ Eigen::Matrix<Real,3,1> Element<NNODES,2,3>::getBaryCoordinates(const Point& poi
 }
 
 template <UInt NNODES>
-bool Element<NNODES,2,3>::isPointInside(const Point& point) const
+bool Element<NNODES,2,3>::isPointInside(const Point<3>& point) const
 {
 	Real eps = 	std::numeric_limits<Real>::epsilon(),
 		 tolerance = 10 * eps;
@@ -124,7 +124,7 @@ bool Element<NNODES,2,3>::isPointInside(const Point& point) const
 
  	Eigen::Matrix<Real,3,3> A;
 
- 	std::vector<Real> diff = point_diff(point, t[0]);
+ 	std::array<Real,3> diff = point_diff<3>(point, t[0]);
 
  	A << M_J_, Eigen::Map<Eigen::Matrix<Real,3,1> >(diff.data());
 
