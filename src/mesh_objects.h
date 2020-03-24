@@ -9,7 +9,7 @@ typedef UInt BcId;
 
 //Simple function to evaluate factorial at compile time
 //Needed for getVolume/getArea member of Element
-constexpr int factorial(int n) {
+constexpr UInt factorial(UInt n) {
     return n ? (n * factorial(n - 1)) : 1;
 }
 
@@ -38,62 +38,45 @@ public:
 	BcId bcId_;
 };
 
-// Abstract class point
-// Doesn't allow creation of points in dimension higher than 3
+// This class implements a n-dimensional point
+// Doesn't allow creation of points in dimension other than 2 or 3
 template<UInt ndim>
 class Point : public Identifier{
-  static_assert(ndim<=3,
-                "Trying to create a Point object in dimension>3; see mesh_objects.h");
-};
+  static_assert(ndim==2 || ndim==3,
+    "ERROR: Trying to create a Point object in dimension different than 2D or 3D; see mesh_objects.h");
 
-// Helper function template declaration
-template <UInt ndim>
-std::array<Real, ndim> point_diff(const Point<ndim> &, const Point<ndim> &);
+  public:
+    using pointCoords=std::array<Real,ndim>;
 
-// 2D point
-template<>
-class Point<2> : public Identifier{
-public:
-  friend std::array<Real, 2> point_diff(const Point<2> &, const Point<2> &);
+    Point(): Identifier(NVAL, NVAL) {};
+    Point(pointCoords coord) :
+              Identifier(NVAL, NVAL), coord_(coord) {}
+    Point(Id id, BcId bcId, pointCoords coord) :
+              Identifier(id, bcId), coord_(coord) {}
 
-  Point(): Identifier(NVAL, NVAL) {};
-  Point(Real x, Real y) :
-        Identifier(NVAL, NVAL), coord_({x,y}) {}
-  Point(Id id, BcId bcId, Real x, Real y) :
-        Identifier(id, bcId), coord_({x,y}) {}
+    Real operator[](UInt i) const {return coord_[i];}
 
-  Real operator[](UInt i) const {return coord_[i];}
+    // Overload the "-" operator to take 2 points of the same dimension and compute
+    // the coordinate difference.
+    // It returns an array for convenience, keep it in mind!
+    friend pointCoords operator -(const Point& lhs, const Point& rhs){
+      pointCoords diff(lhs.coord_);
+      for (int i=0; i<ndim; ++i)
+          diff[i]-=rhs[i];
+      return diff;
+    };
 
-private:
-  std::array<Real,2> coord_;
-};
+    friend Real distance(const Point& lhs, const Point& rhs){
+      pointCoords diff=lhs-rhs;
+      Real dist=0;
+      for (auto const &i : diff)
+        dist+=diff*diff;
+      return std::sqrt(dist);
+    };
 
-// 3D point
-template<>
-class Point<3> : public Identifier{
-public:
-  friend std::array<Real, 3> point_diff(const Point<3> &, const Point<3> &);
-
-  Point(): Identifier(NVAL, NVAL) {};
-  Point(Real x, Real y, Real z) :
-  					Identifier(NVAL, NVAL), coord_({x,y,z}) {}
-  Point(Id id, BcId bcId, Real x, Real y, Real z) :
-  					Identifier(id, bcId), coord_({x,y,z}) {}
-
-  Real operator[](UInt i) const {return coord_[i];}
-
-private:
-  std::array<Real,3> coord_;
-};
-
-// Helper function template definition
-template<UInt ndim>
-std::array<Real,ndim> point_diff(const Point<ndim> &lhs, const Point<ndim> &rhs){
-		std::array<Real,ndim> diff;
-		for (int i=0; i<ndim; ++i)
-				diff[i]=lhs[i]-rhs[i];
-		return diff;
-};
+  private:
+    pointCoords coord_;
+  };
 
 //!  This class implements an Edge, as an objects composed by two points.
 template <UInt ndim>
@@ -113,6 +96,7 @@ class Edge : public Identifier{
  private:
     const std::array<Point<ndim>,2> points_;
   };
+
 
 //! This is an abstract template class called Element
 /*!
@@ -137,61 +121,6 @@ class Edge : public Identifier{
  * 		1	   6	  2
 */
 
-//!  This class implements a Tetrahedron as an objects composed by four or ten nodes, embedded in a 3-dimensional space.
-// For NNODES=10 the edges are ordered like so: (1,2), (1,3), (1,4), (2,3), (3,4), (2,4)
-// The midpoints are also expected to follow this convention!
-
-template <UInt NNODES, UInt mydim, UInt ndim>
-class Element : public Identifier {
-public:
-	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-	static constexpr UInt numVertices=mydim+1;
-	static constexpr UInt numSides=mydim*(mydim+1)/2;
-	static constexpr UInt myDim=mydim;
-
-
-  //! This constructor creates an "empty" Element, with an Id Not Valid
-  	Element():Identifier(NVAL) {}
-
-	//! This constructor creates an Element, given its Id and an std array with the three object Point the will define the Element
-		Element(Id id, const std::array<Point<ndim>,NNODES>& points) :
-					Identifier(id), points_(points) {this->computeProperties();}
-
-	//! Overloading of the operator [],  taking the Node number and returning a node as Point object.
-	Point<ndim> operator[](UInt i) const {return points_[i];}
-
-	Real getDetJ() const {return detJ_;}
-	const Eigen::Matrix<Real,ndim,mydim>& getM_J() const {return M_J_;}
-	const Eigen::Matrix<Real,mydim,ndim>& getM_invJ() const {return M_invJ_;}
-	const Eigen::Matrix<Real,mydim,mydim>& getMetric() const {return metric_;}
-
-	//! A member returning the area/volume of the element
-  // Note: both are needed for compatibility issues with previous implementation
-	Real getArea() const {return std::abs(detJ_)/factorial(ndim);}
-  Real getVolume() const {return std::abs(detJ_)/factorial(ndim);}
-
-  //! A member that computes the barycentric coordinates.
-	Eigen::Matrix<Real,mydim+1,1> getBaryCoordinates(const Point<ndim>& point) const;
-
-	//! A member that tests if a Point is located inside an Element.
-	bool isPointInside(const Point<ndim>& point) const;
-
-	//! A member that verifies which edge/face separates the Triangle/Tetrahedron from a Point.
-	int getPointDirection(const Point<ndim>& point) const;
-
-	//! A member that prints the main properties of the triangle
-	void print(std::ostream & out) const;
-
-private:
-	std::array<Point<ndim>,NNODES> points_;
-	Eigen::Matrix<Real,ndim,mydim> M_J_;
-	Eigen::Matrix<Real,mydim,ndim> M_invJ_;
-	Eigen::Matrix<Real,mydim,mydim> metric_;
-	Real detJ_;
-	void computeProperties();
-};
-
-
 //!  This class implements a Triangle as an objects composed by three or six nodes, embedded in a 3-dimensional space
 /*!
  *  The first three nodes represent the vertices, the others the internal nodes,
@@ -206,51 +135,111 @@ private:
  * 		1	   6	  2
 */
 
-// This case needs special treatment so we partially specialize the template
+//!  This class implements a Tetrahedron as an objects composed by four or ten nodes, embedded in a 3-dimensional space.
+// For NNODES=10 the edges are ordered like so: (1,2), (1,3), (1,4), (2,3), (3,4), (2,4)
+// The midpoints are also expected to follow this convention!
 
-template <UInt NNODES>
-class Element<NNODES, 2, 3> : public Identifier {
+template <UInt NNODES, UInt mydim, UInt ndim>
+class ElementCore : public Identifier {
 public:
 	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-	static constexpr UInt numVertices=3;
-	static constexpr UInt numSides=3;
-	static constexpr UInt myDim=2;
+	static constexpr UInt numVertices=mydim+1;
+	static constexpr UInt numSides=mydim*(mydim+1)/2;
+	static constexpr UInt myDim=mydim;
+
+  using elementPoints=std::array<Point<ndim>,NNODES>;
 
   //! This constructor creates an "empty" Element, with an Id Not Valid
-  	Element():Identifier(NVAL) {}
+  ElementCore() :
+          Identifier(NVAL) {}
 
 	//! This constructor creates an Element, given its Id and an std array with the three object Point the will define the Element
-		Element(Id id, const std::array<Point<3>,NNODES>& points) :
-					Identifier(id), points_(points) {this->computeProperties();}
+	ElementCore(Id id, const elementPoints& points) :
+					Identifier(id), points_(points) {}
 
 	//! Overloading of the operator [],  taking the Node number and returning a node as Point object.
-	Point<3> operator[](UInt i) const {return points_[i];}
+	Point<ndim> operator[](UInt i) const {return points_[i];}
 
 	Real getDetJ() const {return detJ_;}
-	const Eigen::Matrix<Real,3,2>& getM_J() const {return M_J_;}
-	const Eigen::Matrix<Real,2,3>& getM_invJ() const {return M_invJ_;} //actually returns the pseudoinverse of M_J_!
-	const Eigen::Matrix<Real,2,2>& getMetric() const {return metric_;}
-
-	Real getArea() const {return std::sqrt(detJ_)/2;}
+	const Eigen::Matrix<Real,ndim,mydim>& getM_J() const {return M_J_;}
+	const Eigen::Matrix<Real,mydim,ndim>& getM_invJ() const {return M_invJ_;} //in 2.5D this is actually the pseudoinverse!
+	const Eigen::Matrix<Real,mydim,mydim>& getMetric() const {return metric_;}
 
   //! A member that computes the barycentric coordinates.
-	Eigen::Matrix<Real,3,1> getBaryCoordinates(const Point<3>& point) const;
-
-	//! A member that tests if a Point is located inside an Element.
-	bool isPointInside(const Point<3>& point) const;
+	Eigen::Matrix<Real,mydim+1,1> getBaryCoordinates(const Point<ndim>& point) const;
 
 	//! A member that prints the main properties of the triangle
 	void print(std::ostream & out) const;
 
-private:
-	const std::array<Point<3>,NNODES> points_;
-	Eigen::Matrix<Real,3,2> M_J_;
-	Eigen::Matrix<Real,2,3> M_invJ_; //actually this is the pseudoinverse of M_J_!
-	Eigen::Matrix<Real,2,2> metric_;
+protected:
+	elementPoints points_;
+	Eigen::Matrix<Real,ndim,mydim> M_J_;
+	Eigen::Matrix<Real,mydim,ndim> M_invJ_; //in 2.5D this is actually the pseudoinverse!
+	Eigen::Matrix<Real,mydim,mydim> metric_;
 	Real detJ_;
-	void computeProperties();
 };
 
+
+
+// This class adds some useful methods for 2D and 3D elements
+template <UInt NNODES, UInt mydim, UInt ndim>
+class Element : public ElementCore<NNODES,mydim,ndim> {
+public:
+  //! This constructor creates an "empty" Element, with an Id Not Valid
+  Element() :
+        ElementCore<NNODES,mydim,ndim>() {}
+
+  //! This constructor creates an Element, given its Id and an std array with the three object Point the will define the Element
+  Element(Id id, const std::array<Point<ndim>,NNODES>& points) :
+        ElementCore<NNODES,mydim,ndim>(id,points) {this->computeProperties();}
+
+  //! A member returning the area/volume of the element
+  // Note: both are needed for compatibility issues with previous implementation
+  Real getArea() const {return std::abs(detJ_)/factorial(ndim);}
+  Real getVolume() const {return std::abs(detJ_)/factorial(ndim);}
+
+  //! A member that tests if a Point is located inside an Element.
+  bool isPointInside(const Point<ndim>& point) const;
+
+  //! A member that verifies which edge/face separates the Triangle/Tetrahedron from a Point.
+  int getPointDirection(const Point<ndim>& point) const;
+
+private:
+  void computeProperties();
+
+};
+
+
+// This partial specialization deals with the 2.5D case
+template <UInt NNODES>
+class Element<NNODES, 2,3> : public ElementCore<NNODES,2,3> {
+public:
+  //! This constructor creates an "empty" Element, with an Id Not Valid
+  Element() :
+        ElementCore<NNODES,2,3>() {}
+
+  //! This constructor creates an Element, given its Id and an std array with the three object Point the will define the Element
+  Element(Id id, const std::array<Point<3>,NNODES>& points) :
+        ElementCore<NNODES,2,3>(id,points) {this->computeProperties();}
+
+  //! A member returning the area of the element
+  // Mind the sqrt!
+  Real getArea() const {return std::sqrt(detJ_)/2;}
+
+  //! A member that tests if a Point is located inside an Element.
+  // Note: this is implemented (slightly) differently in this case
+  // In particular one has to check that the point lies on the same plane as the triangle!
+  bool isPointInside(const Point<3>& point) const;
+
+  // This function projects a 3D point (XYZ coordinates!) onto the element
+  // Note: if the projection lies outside the element the function returns
+  // the closest point on the boundary of the element instead
+  Point<3> computeProjection(const Point<3>& point) const;
+
+private:
+  void computeProperties();
+
+};
 
 
 // This covers all the order 1 cases!

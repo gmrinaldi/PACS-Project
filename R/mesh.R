@@ -659,16 +659,16 @@ create.mesh.3D<- function(nodes, tetrahedrons, order = 1, nodesattributes = NULL
   out<-NULL
   
   if(order==1 && ncol(tetrahedrons) == 4){
-    out = list(nodes=nodes, nodesmarkers=nodesmarkers, nodesattributes=nodesattributes,
-               tetrahedrons=tetrahedrons, segments=segments, segmentsmarkers=segmentsmarkers,
-               edges=edges, edgesmarkers=edgesmarkers, faces=faces, facesmarkers=facesmarkers,
-               neighbors=neighbors, holes=holes, order=order)
+    out <- list(nodes=nodes, nodesmarkers=nodesmarkers, nodesattributes=nodesattributes,
+                tetrahedrons=tetrahedrons, segments=segments, segmentsmarkers=segmentsmarkers,
+                faces=faces, facesmarkers=facesmarkers, neighbors=neighbors,
+                edges=edges, edgesmarkers=edgesmarkers,  holes=holes, order=order)
   }
   else if(order==2 && ncol(tetrahedrons) == 10){ # tetrahedrons matrix contains both the true tetrahedrons and the midpoints ones
-    out = list(nodes=nodes, nodesmarkers=nodesmarkers, nodesattributes=nodesattributes,
-               tetrahedrons=tetrahedrons, segments=segments, segmentsmarkers=segmentsmarkers,
-               edges=edges, edgesmarkers=edgesmarkers, faces=faces, facesmarkers=facesmarkers,
-               neighbors=neighbors, holes=holes, order=order)
+    out <- list(nodes=nodes, nodesmarkers=nodesmarkers, nodesattributes=nodesattributes,
+                tetrahedrons=tetrahedrons, segments=segments, segmentsmarkers=segmentsmarkers,
+                faces=faces, facesmarkers=facesmarkers, neighbors=neighbors,
+                edges=edges, edgesmarkers=edgesmarkers,  holes=holes, order=order)
   }
   else if(order==2 && ncol(tetrahedrons) == 4){
     print("You set order=2 but passed a matrix of tetrahedrons with just 4 columns. The midpoints for each edge will be computed.")
@@ -687,8 +687,8 @@ create.mesh.3D<- function(nodes, tetrahedrons, order = 1, nodesattributes = NULL
     
     out <- list(nodes=nodes, nodesmarkers=nodesmarkers, nodesattributes=nodesattributes,
                tetrahedrons=tetrahedrons, segments=segments, segmentsmarkers=segmentsmarkers,
-               edges=edges, edgesmarkers=edgesmarkers, faces=faces, facesmarkers=facesmarkers,
-               neighbors=neighbors, holes=holes, order=order)
+               faces=faces, facesmarkers=facesmarkers, neighbors=neighbors,
+               edges=edges, edgesmarkers=edgesmarkers,  holes=holes, order=order)
   }
   else{
     stop("The number of columns of tetrahedrons matrix is not consistent with the order parameter")
