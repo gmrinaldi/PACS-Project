@@ -43,7 +43,8 @@ public:
 		/*!
 			\return The number of nodes in the mesh
 		*/
-	UInt num_nodes() const {return num_nodes_/ndim;}
+  // We make this a pure virtual function just to turn MeshHandlerCore into an abstract class
+	virtual UInt num_nodes() const = 0;
 
 	//! A normal member returning an unsigned integer value.
 		/*!
@@ -63,8 +64,7 @@ public:
 		 * \param id an Id argument
 			\return The point with the specified id
 		*/
-  // Note: we make this a pure virtual function just to turn MeshHandlerCore into an abstract class
-	Point<ndim> getPoint(Id id) const = 0;
+	Point<ndim> getPoint(Id id) const;
 
 	//! A normal member returning an Element
 		/*!
@@ -118,6 +118,8 @@ public:
   MeshHandler(Real* points, UInt* sides, UInt* elements, UInt* neighbors, UInt num_nodes, UInt num_sides, UInt num_elements) :
       MeshHandlerCore<ORDER,mydim,ndim>(points, sides, elements, neighbors, num_nodes, num_sides, num_elements) {}
 
+  UInt num_nodes() const {return this->num_nodes_/ndim;}
+
   //! A normal member returning the element on which a point is located
     /*!
     * This method implements a Visibility Walk Algorithm (further details in: Walking in a triangulation, Devillers et al)
@@ -132,16 +134,18 @@ public:
 
 // Useful to add some methods peculiar to surface meshes
 template <UInt ORDER>
-class MeshHandler<ORDER,2,3> : public MeshHandlerBase<ORDER, 2, 3>{
+class MeshHandler<ORDER,2,3> : public MeshHandlerCore<ORDER,2,3>{
 public:
   MeshHandler(Real* points, UInt* sides, UInt* elements, UInt* neighbors, UInt num_nodes, UInt num_sides, UInt num_elements) :
       MeshHandlerCore<ORDER,2,3>(points, sides, elements, neighbors, num_nodes, num_sides, num_elements) {}
+
+  UInt num_nodes() const {return this->num_nodes_/3;}
 
   // This function projects points onto the mesh
   std::vector<Point<3> > project(const std::vector<Point<3> > points) const;
 private:
   // This function computes the closest nodes to the given points and returns their index
-  std::vector<std::pair<UInt,Real> > find_closest(const std::vector<Point<3> > points) const;
+  std::vector<UInt> find_closest(const std::vector<Point<3> > points) const;
 };
 
 

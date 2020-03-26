@@ -182,7 +182,7 @@ protected:
 	Real detJ_;
 
   // pure virtual member to make ElementCore an abstract base class
-  void computeProperties()=0;
+  virtual void computeProperties()=0;
 };
 
 
@@ -201,8 +201,8 @@ public:
 
   //! A member returning the area/volume of the element
   // Note: both are needed for compatibility issues with previous implementation
-  Real getArea() const {return std::abs(detJ_)/factorial(ndim);}
-  Real getVolume() const {return std::abs(detJ_)/factorial(ndim);}
+  Real getArea() const {return std::abs(this->detJ_)/factorial(ndim);}
+  Real getVolume() const {return std::abs(this->detJ_)/factorial(ndim);}
 
   //! A member that tests if a Point is located inside an Element.
   bool isPointInside(const Point<ndim>& point) const;
@@ -238,7 +238,7 @@ public:
 
   //! A member returning the area of the element
   // Mind the sqrt!
-  Real getArea() const {return std::sqrt(detJ_)/2;}
+  Real getArea() const {return std::sqrt(this->detJ_)/2;}
 
   //! A member that tests if a Point is located inside an Element.
   // Note: this is implemented (slightly) differently in this case

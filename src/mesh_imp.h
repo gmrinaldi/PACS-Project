@@ -83,7 +83,7 @@ Element<how_many_nodes(ORDER,mydim),mydim,ndim> MeshHandler<ORDER,mydim,ndim>::f
 }
 
 template <UInt ORDER>
-std::vector<UInt> > MeshHandler<ORDER,2,3>::find_closest(const std::vector<Point<3> > points) const{
+std::vector<UInt> MeshHandler<ORDER,2,3>::find_closest(const std::vector<Point<3> > points) const{
 	// Container for ID and distances of closest points
 	std::vector<std::pair<UInt,Real> > closest_to(points.size());
 	Point<3> curr_node=this->getPoint(0);

@@ -5,10 +5,9 @@
 template <UInt NNODES, UInt mydim, UInt ndim>
 Eigen::Matrix<Real,mydim+1,1> ElementCore<NNODES,mydim,ndim>::getBaryCoordinates(const Point<ndim>& point) const
 {
-	ElementCore<NNODES,mydim,ndim> t = *this;
 	Eigen::Matrix<Real,mydim+1,1> lambda;
 
-	std::array<Real,ndim> diff = point - t[0];
+	std::array<Real,ndim> diff = point - points_[0];
 
 	lambda.tail(mydim) = M_invJ_ * Eigen::Map<Eigen::Matrix<Real,ndim,1> >(diff.data());
 
@@ -32,7 +31,7 @@ void ElementCore<NNODES,mydim,ndim>::print(std::ostream & out) const
 template <UInt NNODES, UInt mydim, UInt ndim>
 void Element<NNODES,mydim,ndim>::computeProperties()
 {
-	ElementCore<NNODES,mydim,ndim> &t = *this;
+	Element<NNODES,mydim,ndim> &t = *this;
 	std::array<Real,ndim> diff;
 
 	for (int i=0; i<mydim; ++i){
@@ -82,7 +81,7 @@ int Element<NNODES,mydim,ndim>::getPointDirection(const Point<ndim>& point) cons
 template <UInt NNODES>
 void Element<NNODES,2,3>::computeProperties()
 {
-	ElementCore<NNODES,2,3> &t = *this;
+	Element<NNODES,2,3> &t = *this;
 	std::array<Real,3> diff;
 
 	for (int i=0; i<2; ++i){
@@ -112,7 +111,7 @@ bool Element<NNODES,2,3>::isPointInside(const Point<3>& point) const
 
 	std::array<Real,3> diff = point - t[0];
 
- 	A << M_J_, Eigen::Map<Eigen::Matrix<Real,3,1> >(diff.data());
+ 	A << this->M_J_, Eigen::Map<Eigen::Matrix<Real,3,1> >(diff.data());
 
  	// NOTE: this method is as fast as ColPivHouseholderQR for such small matrices
  	// but this is optimized for rank computations (see eigen documentation)
@@ -245,7 +244,7 @@ inline Real Element<10,3,3>::evaluate_point(const Point<3>& point, const Eigen::
 
 
 // This covers all order 1 cases
-template <UInt Nodes,UInt mydim, UInt ndim>
+template <UInt NNODES, UInt mydim, UInt ndim>
 inline Eigen::Matrix<Real,ndim,1> Element<NNODES,mydim,ndim>::evaluate_der_point(const Point<ndim>& point, const Eigen::Matrix<Real,NNODES,1>& coefficients) const
 {
   Eigen::Matrix<Real,mydim,mydim+1> B1;
@@ -338,8 +337,9 @@ inline Real Element<10,3,3>::integrate(const Eigen::Matrix<Real,10,1>& coefficie
 						2, 2, 6, 2,
 						2, 2, 2, 6;
 
+	Eigen::Matrix<Real,4,1> lambda;
 	for(int i=0; i<4; ++i){
-		lambda = lambdas.row(i).normalize();
+		lambda = lambdas.row(i).normalized();
   	shape_fun << lambda[0]*(2*lambda[0] - 1),
 									lambda[1]*(2*lambda[1] - 1),
 									lambda[2]*(2*lambda[2] - 1),
