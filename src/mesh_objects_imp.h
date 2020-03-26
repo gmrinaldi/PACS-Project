@@ -299,7 +299,7 @@ template <UInt NNODES, UInt mydim, UInt ndim>
 inline Real Element<NNODES,mydim,ndim>::integrate(const Eigen::Matrix<Real,NNODES,1>& coefficients) const
 {
 	// This works because of linearity! BTW, getArea actually returns the volume in 3D
-	return getArea() * coefficients.sum()/NNODES;
+	return getArea() * coefficients.mean();
 }
 
 // Full specialization for order 2 in 2D
@@ -307,7 +307,7 @@ template <>
 inline Real Element<6,2,2>::integrate(const Eigen::Matrix<Real,6,1>& coefficients) const
 {
 	// Evaluate the function on midpoints and weight each term equally
-	return getArea() * coefficients.tail(3).sum()/3;
+	return getArea() * coefficients.tail(3).mean();
 }
 
 // Full specialization for order 2 in 2.5D
@@ -315,7 +315,7 @@ template <>
 inline Real Element<6,2,3>::integrate(const Eigen::Matrix<Real,6,1>& coefficients) const
 {
 	// Evaluate the function on midpoints and weight each term equally
-	return getArea() * coefficients.tail(3).sum()/3;
+	return getArea() * coefficients.tail(3).mean();
 }
 
 // Full specialization for order 2 in 3D
@@ -326,9 +326,7 @@ inline Real Element<10,3,3>::integrate(const Eigen::Matrix<Real,10,1>& coefficie
 	// In this case a more complicated integration scheme is needed!
 	Real result=0;
 	Eigen::Matrix<Real,10,1> shape_fun;
-	shape_fun << -1, -1, -1, -1, 2, 2, 2, 2, 2, 2;
-	shape_fun.normalize();
-
+	shape_fun << -0.125, -0.125, -0.125, -0.125, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25;
 	result += -0.8*coefficients.dot(shape_fun);
 
 	Eigen::Matrix<Real,4,4> lambdas;
@@ -339,7 +337,7 @@ inline Real Element<10,3,3>::integrate(const Eigen::Matrix<Real,10,1>& coefficie
 
 	Eigen::Matrix<Real,4,1> lambda;
 	for(int i=0; i<4; ++i){
-		lambda = lambdas.row(i).normalized();
+		lambda = lambdas.row(i)/lambdas.row(i).sum();
   	shape_fun << lambda[0]*(2*lambda[0] - 1),
 									lambda[1]*(2*lambda[1] - 1),
 									lambda[2]*(2*lambda[2] - 1),
@@ -353,7 +351,7 @@ inline Real Element<10,3,3>::integrate(const Eigen::Matrix<Real,10,1>& coefficie
 		result += 0.45*coefficients.dot(shape_fun);
 	}
 
-return result;
+return getVolume() * result;
 
 }
 
