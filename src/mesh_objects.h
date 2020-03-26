@@ -157,6 +157,9 @@ public:
 	ElementCore(Id id, const elementPoints& points) :
 					Identifier(id), points_(points) {}
 
+  // Default destructor
+  virtual ~ElementCore()=default;
+
 	//! Overloading of the operator [],  taking the Node number and returning a node as Point object.
 	Point<ndim> operator[](UInt i) const {return points_[i];}
 
@@ -177,6 +180,10 @@ protected:
 	Eigen::Matrix<Real,mydim,ndim> M_invJ_; //in 2.5D this is actually the pseudoinverse!
 	Eigen::Matrix<Real,mydim,mydim> metric_;
 	Real detJ_;
+
+  // pure virtual member to make ElementCore an abstract base class
+  void computeProperties()=0;
+
 };
 
 

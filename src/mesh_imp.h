@@ -3,7 +3,7 @@
 
 #ifdef R_VERSION_
 template <UInt ORDER, UInt mydim, UInt ndim>
-MeshHandler<ORDER,mydim,ndim>::MeshHandler(SEXP mesh)
+MeshHandlerCore<ORDER,mydim,ndim>::MeshHandlerCore(SEXP mesh)
 {
 	mesh_ 		= mesh;
 	points_ 	= REAL(VECTOR_ELT(mesh_, 0));
@@ -19,7 +19,7 @@ MeshHandler<ORDER,mydim,ndim>::MeshHandler(SEXP mesh)
 #endif
 
 template <UInt ORDER, UInt mydim, UInt ndim>
-Point<ndim> MeshHandler<ORDER,mydim,ndim>::getPoint(Id id) const
+Point<ndim> MeshHandlerCore<ORDER,mydim,ndim>::getPoint(Id id) const
 {
 	std::array<Real,ndim> coord;
 	for(int i=0; i<ndim; ++i)
@@ -28,7 +28,7 @@ Point<ndim> MeshHandler<ORDER,mydim,ndim>::getPoint(Id id) const
 }
 
 template <UInt ORDER, UInt mydim, UInt ndim>
-Element<how_many_nodes(ORDER,mydim),mydim,ndim> MeshHandler<ORDER,mydim,ndim>::getElement(Id id) const
+Element<how_many_nodes(ORDER,mydim),mydim,ndim> MeshHandlerCore<ORDER,mydim,ndim>::getElement(Id id) const
 {
 	std::array<Point<ndim>, how_many_nodes(ORDER,mydim)> element_points;
 	Id curr_point;
@@ -41,7 +41,7 @@ Element<how_many_nodes(ORDER,mydim),mydim,ndim> MeshHandler<ORDER,mydim,ndim>::g
 }
 
 template <UInt ORDER, UInt mydim, UInt ndim>
-Element<how_many_nodes(ORDER,mydim),mydim,ndim> MeshHandler<ORDER,mydim,ndim>::getNeighbors(Id id_element, UInt number) const
+Element<how_many_nodes(ORDER,mydim),mydim,ndim> MeshHandlerCore<ORDER,mydim,ndim>::getNeighbors(Id id_element, UInt number) const
 {
 	Id id_neighbor = neighbors_[number * num_elements_ + id_element];
 	//return empty element if "neighbor" not present (out of boundary!)
@@ -49,12 +49,12 @@ Element<how_many_nodes(ORDER,mydim),mydim,ndim> MeshHandler<ORDER,mydim,ndim>::g
 }
 
 template <UInt ORDER, UInt mydim, UInt ndim>
-Element<how_many_nodes(ORDER,mydim),mydim,ndim> MeshHandler<ORDER,mydim,ndim>::findLocationNaive(const Point<ndim> point) const
+Element<how_many_nodes(ORDER,mydim),mydim,ndim> MeshHandlerCore<ORDER,mydim,ndim>::findLocationNaive(const Point<ndim> point) const
 {
 	meshElement current_element;
 	for(Id id=0; id < num_elements_; ++id)
 	{
-		current_element = getElement(id);
+		current_element = this->getElement(id);
 		if(current_element.isPointInside(point))
 			return current_element;
 	}
@@ -76,16 +76,102 @@ Element<how_many_nodes(ORDER,mydim),mydim,ndim> MeshHandler<ORDER,mydim,ndim>::f
 	while(current_element.getId() != Identifier::NVAL && !current_element.isPointInside(point))
 	{
 		direction = current_element.getPointDirection(point);
-		current_element = getNeighbors(current_element.getId(), direction);
+		current_element = this->getNeighbors(current_element.getId(), direction);
 	}
 
 	return current_element;
 }
 
+template <UInt ORDER>
+std::vector<UInt> > MeshHandler<ORDER,2,3>::find_closest(const std::vector<Point<3> > points) const{
+	// Container for ID and distances of closest points
+	std::vector<std::pair<UInt,Real> > closest_to(points.size());
+	Point<3> curr_node=this->getPoint(0);
+
+	for(int i=0; i<points.size(); ++i)
+		closest_to[i]=std::make_pair(0,distance(curr_node,points[i]));
+
+	for(int i=1; i<this->num_nodes(); ++i){
+		curr_node=this->getPoint(i);
+		for(int j=0; j<points.size(); ++j){
+			// Note: it is fine to declare a variable inside a loop for built-in types!
+			Real dist=distance(curr_node,points[j]);
+			if (dist<closest_to[j].second)
+				closest_to[j]=std::make_pair(i,dist);
+		}
+	}
+
+	std::vector<UInt> closest_ID(points.size());
+	for (int i=0; i<points.size(); ++i)
+		closest_ID[i] = closest_to[i].first;
+
+	return closest_ID;
+}
+
+
+template <UInt ORDER>
+std::vector<Point<3> > MeshHandler<ORDER,2,3>::project(const std::vector<Point<3> > points) const{
+
+	UInt const num_elements = this->num_elements();
+	// First find the closest node for each point
+	std::vector<UInt> closest_nodes=this->find_closest(points);
+
+	// Second build up a patch of elements on which to project
+	std::vector<std::vector<UInt> > patches(points.size());
+
+	// Loop over the elements (first consider only true nodes)
+	for(int i=0; i<3*num_elements; ++i){
+		for(int j=0; j<closest_nodes.size(); ++j){
+			if(closest_nodes[j]==this->elements_[i]){
+				patches[j].push_back(i%this->num_elements());
+				// Add to the patch the elements that lie opposite the closest node
+				patches[j].push_back(this->neighbors_[i]);
+			}
+		}
+	}
+	// Note: in the 2nd order case midpoints are also considered
+	// Note: in the 1st order case this loop is skipped altogether
+	for(int i=3*num_elements; i<this->num_elements_; ++i){
+		for(int j=0; j<closest_nodes.size(); ++j){
+			if(closest_nodes[j]==this->elements_[i]){
+				patches[j].push_back(i%num_elements);
+				// Add to the patch the neighboring elements
+				patches[j].push_back(this->neighbors_[(i-num_elements)%(3*num_elements)]);
+				patches[j].push_back(this->neighbors_[(i-2*num_elements)%(3*num_elements)]);
+			}
+		}
+	}
+
+
+	// Third compute the projections on the elements in each patch and keep the closest
+	std::vector<Point<3> > projections(points.size());
+	Element<how_many_nodes(ORDER,2),2,3> current_element;
+	Point<3> proj_point;
+
+	for(int i=0; i<points.size(); ++i){
+		current_element = this->getElement(patches[i][0]);
+		projections[i] = current_element.computeProjection(points[i]);
+		// Note: it is fine to declare a variable inside a loop for built-in types!
+		Real dist = distance(projections[i], points[i]);
+
+		for(int j=1; j<patches[i].size(); ++j){
+			current_element = this->getElement(patches[i][j]);
+			proj_point = current_element.computeProjection(points[i]);
+			if(distance(proj_point, points[i])<dist){
+				projections[i] = proj_point;
+				dist = distance(projections[i], points[i]);
+			}
+		}
+	}
+
+	return projections;
+
+}
+
 
 // Note: this print functions need to be checked!
 template <UInt ORDER, UInt mydim, UInt ndim>
-void MeshHandler<ORDER,mydim,ndim>::printPoints(std::ostream & out)
+void MeshHandlerCore<ORDER,mydim,ndim>::printPoints(std::ostream & out)
 {
 	for(UInt i = 0; i < num_nodes_; ++i)
 	{
@@ -95,7 +181,7 @@ void MeshHandler<ORDER,mydim,ndim>::printPoints(std::ostream & out)
 
 
 template <UInt ORDER, UInt mydim, UInt ndim>
-void MeshHandler<ORDER,mydim,ndim>::printElements(std::ostream & out)
+void MeshHandlerCore<ORDER,mydim,ndim>::printElements(std::ostream & out)
 {
 
 	out << "# Triangles: "<< num_elements_ <<std::endl;
@@ -110,7 +196,7 @@ void MeshHandler<ORDER,mydim,ndim>::printElements(std::ostream & out)
 }
 
 template <UInt ORDER, UInt mydim, UInt ndim>
-void MeshHandler<ORDER,mydim,ndim>::printNeighbors(std::ostream & out)
+void MeshHandlerCore<ORDER,mydim,ndim>::printNeighbors(std::ostream & out)
 {
 
 	out << "# Neighbors list: "<< num_elements_ <<std::endl;
