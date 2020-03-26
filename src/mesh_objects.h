@@ -183,7 +183,6 @@ protected:
 
   // pure virtual member to make ElementCore an abstract base class
   void computeProperties()=0;
-
 };
 
 
@@ -210,6 +209,14 @@ public:
 
   //! A member that verifies which edge/face separates the Triangle/Tetrahedron from a Point.
   int getPointDirection(const Point<ndim>& point) const;
+
+  //! A member to evaluate functions in a point inside the element
+  Real evaluate_point(const Point<ndim>& point, const Eigen::Matrix<Real,NNODES,1>& coefficients) const;
+  //! A member to evaluate derivatives at a point inside the element
+  Eigen::Matrix<Real,ndim,1> evaluate_der_point(const Point<ndim>& point, const Eigen::Matrix<Real,NNODES,1>& coefficients) const;
+  //! A member to evaluate integrals on the element
+  Real integrate(const Eigen::Matrix<Real,NNODES,1>& coefficients) const;
+
 
 private:
   void computeProperties();
@@ -243,116 +250,18 @@ public:
   // the closest point on the boundary of the element instead
   Point<3> computeProjection(const Point<3>& point) const;
 
+  //! A member to evaluate functions in a point inside the element
+  Real evaluate_point(const Point<3>& point, const Eigen::Matrix<Real,NNODES,1>& coefficients) const;
+  //! A member to evaluate derivatives at a point inside the element
+  Eigen::Matrix<Real,3,1> evaluate_der_point(const Point<3>& point, const Eigen::Matrix<Real,NNODES,1>& coefficients) const;
+  //! A member to evaluate integrals on the element
+  Real integrate(const Eigen::Matrix<Real,NNODES,1>& coefficients) const;
+
+
 private:
   void computeProperties();
 
 };
-
-
-// This covers all the order 1 cases!
-template <UInt Nodes, UInt mydim, UInt ndim>
-inline Real evaluate_point(const Element<Nodes,mydim,ndim>& t, const Point<ndim>& point, const Eigen::Matrix<Real,Nodes,1>& coefficients)
-{
-  return(coefficients.dot(t.getBaryCoordinates(point)));
-	return 0;
-}
-
-// Full specialization for order 2 in 2D
-template <>
-inline Real evaluate_point<6,2,2>(const Element<6,2,2>& t, const Point<2>& point, const Eigen::Matrix<Real,6,1>& coefficients)
-{
-	Eigen::Matrix<Real,3,1> lambda = t.getBaryCoordinates(point);
-  return( coefficients[0]*lambda[0]*(2*lambda[0] - 1) +
-            coefficients[1]*lambda[1]*(2*lambda[1] - 1) +
-            coefficients[2]*lambda[2]*(2*lambda[2] - 1) +
-            coefficients[3]*4*lambda[1]*lambda[2] +
-            coefficients[4]*4*lambda[2]*lambda[0] +
-            coefficients[5]*4*lambda[0]*lambda[1] );
-}
-
-
-
- // Full specialization for order 2 in 2.5D
-template <>
-inline Real evaluate_point<6,2,3>(const Element<6,2,3>& t, const Point<3>& point, const Eigen::Matrix<Real,6,1>& coefficients)
-{
-	Eigen::Matrix<Real,3,1> lambda = t.getBaryCoordinates(point);
-	return( coefficients[0]*lambda[0]*(2*lambda[0] - 1) +
-            coefficients[1]*lambda[1]*(2*lambda[1] - 1) +
-            coefficients[2]*lambda[2]*(2*lambda[2] - 1) +
-            coefficients[3]*4*lambda[1]*lambda[2] +
-            coefficients[4]*4*lambda[2]*lambda[0] +
-            coefficients[5]*4*lambda[0]*lambda[1] );
-}
-
-// Full specialization for order 2 in 3D
-// MEMO: this works assuming edges are ordered like so: (1,2), (1,3), (1,4), (2,3), (3,4), (2,4)
-template <>
-inline Real evaluate_point<10,3,3>(const Element<10,3,3>& t, const Point<3>& point, const Eigen::Matrix<Real,10,1>& coefficients)
-{
- Eigen::Matrix<Real,4,1> lambda = t.getBaryCoordinates(point);
- return( coefficients[0]*lambda[0]*(2*lambda[0] - 1) +
-           coefficients[1]*lambda[1]*(2*lambda[1] - 1) +
-           coefficients[2]*lambda[2]*(2*lambda[2] - 1) +
-           coefficients[3]*lambda[3]*(2*lambda[3] - 1) +
-           coefficients[4]*(4*lambda[1]*lambda[0]) +
-           coefficients[5]*(4*lambda[2]*lambda[0]) +
-           coefficients[6]*(4*lambda[3]*lambda[0]) +
-           coefficients[7]*(4*lambda[1]*lambda[2]) +
-           coefficients[8]*(4*lambda[2]*lambda[3]) +
-           coefficients[9]*(4*lambda[3]*lambda[1]) );
-}
-
-
-// This covers the order 1 case
-template <UInt Nodes,UInt mydim, UInt ndim>
-inline Eigen::Matrix<Real,ndim,1> evaluate_der_point(const Element<Nodes,mydim,ndim>& t, const Point<ndim>& point, const Eigen::Matrix<Real,Nodes,1>& coefficients)
-{
-  Eigen::Matrix<Real,mydim,mydim+1> B1;
-  B1.col(0).setConstant(-1);
-  B1.rightCols(mydim).setIdentity();
-
-  return(t.getM_invJ().transpose()*B1*coefficients);
-}
-
-
-template <>
-inline Eigen::Matrix<Real,2,1> evaluate_der_point<6,2,2>(const Element<6,2,2>& t, const Point<2>& point, const Eigen::Matrix<Real,6,1>& coefficients)
-{
-  // Multiply by 4 for convenience in assemblying B2
-	Eigen::Matrix<Real,3,1> bar4 = 4*t.getBaryCoordinates(point);
-	Eigen::Matrix<Real,2,6> B2;
-  B2 << 1-bar4(0), bar4(1)-1,           0, bar4(2),        -bar4(2), bar4(0)-bar4(1),
-        1-bar4(0),           0, bar4(2)-1, bar4(1), bar4(0)-bar4(2),        -bar4(1);
-	return(t.getM_invJ().transpose()*B2*coefficients);
-}
-
-template <>
-inline Eigen::Matrix<Real,3,1> evaluate_der_point<6,2,3>(const Element<6,2,3>& t, const Point<3>& point, const Eigen::Matrix<Real,6,1>& coefficients)
-{
-  // Multiply by 4 for convenience in assemblying B2
-	Eigen::Matrix<Real,3,1> bar4 = 4*t.getBaryCoordinates(point);
-	Eigen::Matrix<Real,2,6> B2;
-  B2 << 1-bar4(0), bar4(1)-1,           0, bar4(2),        -bar4(2), bar4(0)-bar4(1),
-        1-bar4(0),           0, bar4(2)-1, bar4(1), bar4(0)-bar4(2),        -bar4(1);
-	return(t.getM_invJ().transpose()*B2*coefficients);
-}
-
-// Full specialization for order 2 in 3D
-// MEMO: this works assuming edges are ordered like so: (1,2), (1,3), (1,4), (2,3), (3,4), (2,4)
-template <>
-inline Eigen::Matrix<Real,3,1> evaluate_der_point<10,3,3>(const Element<10,3,3>& t, const Point<3>& point, const Eigen::Matrix<Real,10,1>& coefficients)
-{
-  // Multiply by 4 for convenience in assemblying B2
-	Eigen::Matrix<Real,4,1> bar4 = 4*t.getBaryCoordinates(point);
-	Eigen::Matrix<Real,3,10> B2;
-  B2 << 1-bar4(0),  bar4(1)-1,          0,         0, bar4(0)-bar4(1),        -bar4(2),        -bar4(3),  bar4(2),        0, bar4(3),
-        1-bar4(0),           0, bar4(2)-1,         0,        -bar4(1), bar4(0)-bar4(2),        -bar4(3),  bar4(1),  bar4(3),       0,
-        1-bar4(0),           0,         0, bar4(3)-1,        -bar4(1),        -bar4(2), bar4(0)-bar4(3),        0,  bar4(2), bar4(1);
-
-	return(t.getM_invJ().transpose()*B2*coefficients);
-}
-
 
 
 

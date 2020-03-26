@@ -192,4 +192,175 @@ Point<3> Element<NNODES,2,3>::computeProjection(const Point<3>& point) const
 }
 
 
+// This covers all order 1 cases
+template <UInt NNODES, UInt mydim, UInt ndim>
+inline Real Element<NNODES,mydim,ndim>::evaluate_point(const Point<ndim>& point, const Eigen::Matrix<Real,NNODES,1>& coefficients) const
+{
+  return(coefficients.dot(this->getBaryCoordinates(point)));
+}
+
+// Full specialization for order 2 in 2D
+template <>
+inline Real Element<6,2,2>::evaluate_point(const Point<2>& point, const Eigen::Matrix<Real,6,1>& coefficients) const
+{
+	Eigen::Matrix<Real,3,1> lambda = this->getBaryCoordinates(point);
+  return( coefficients[0]*lambda[0]*(2*lambda[0] - 1) +
+            coefficients[1]*lambda[1]*(2*lambda[1] - 1) +
+            coefficients[2]*lambda[2]*(2*lambda[2] - 1) +
+            coefficients[3]*4*lambda[1]*lambda[2] +
+            coefficients[4]*4*lambda[2]*lambda[0] +
+            coefficients[5]*4*lambda[0]*lambda[1] );
+}
+
+ // Full specialization for order 2 in 2.5D
+template <>
+inline Real Element<6,2,3>::evaluate_point(const Point<3>& point, const Eigen::Matrix<Real,6,1>& coefficients) const
+{
+	Eigen::Matrix<Real,3,1> lambda = this->getBaryCoordinates(point);
+	return( coefficients[0]*lambda[0]*(2*lambda[0] - 1) +
+            coefficients[1]*lambda[1]*(2*lambda[1] - 1) +
+            coefficients[2]*lambda[2]*(2*lambda[2] - 1) +
+            coefficients[3]*4*lambda[1]*lambda[2] +
+            coefficients[4]*4*lambda[2]*lambda[0] +
+            coefficients[5]*4*lambda[0]*lambda[1] );
+}
+
+// Full specialization for order 2 in 3D
+// MEMO: this works assuming edges are ordered like so: (1,2), (1,3), (1,4), (2,3), (3,4), (2,4)
+template <>
+inline Real Element<10,3,3>::evaluate_point(const Point<3>& point, const Eigen::Matrix<Real,10,1>& coefficients) const
+{
+ Eigen::Matrix<Real,4,1> lambda = this->getBaryCoordinates(point);
+ return( coefficients[0]*lambda[0]*(2*lambda[0] - 1) +
+           coefficients[1]*lambda[1]*(2*lambda[1] - 1) +
+           coefficients[2]*lambda[2]*(2*lambda[2] - 1) +
+           coefficients[3]*lambda[3]*(2*lambda[3] - 1) +
+           coefficients[4]*(4*lambda[1]*lambda[0]) +
+           coefficients[5]*(4*lambda[2]*lambda[0]) +
+           coefficients[6]*(4*lambda[3]*lambda[0]) +
+           coefficients[7]*(4*lambda[1]*lambda[2]) +
+           coefficients[8]*(4*lambda[2]*lambda[3]) +
+           coefficients[9]*(4*lambda[3]*lambda[1]) );
+}
+
+
+// This covers all order 1 cases
+template <UInt Nodes,UInt mydim, UInt ndim>
+inline Eigen::Matrix<Real,ndim,1> Element<NNODES,mydim,ndim>::evaluate_der_point(const Point<ndim>& point, const Eigen::Matrix<Real,NNODES,1>& coefficients) const
+{
+  Eigen::Matrix<Real,mydim,mydim+1> B1;
+  B1.col(0).setConstant(-1);
+  B1.rightCols(mydim).setIdentity();
+
+  return(this->M_invJ_.transpose()*B1*coefficients);
+}
+
+// Full specialization for order 2 in 2D
+template <>
+inline Eigen::Matrix<Real,2,1> Element<6,2,2>::evaluate_der_point(const Point<2>& point, const Eigen::Matrix<Real,6,1>& coefficients) const
+{
+  // Multiply by 4 for convenience in assemblying B2
+	Eigen::Matrix<Real,3,1> bar4 = 4*this->getBaryCoordinates(point);
+	Eigen::Matrix<Real,2,6> B2;
+  B2 << 1-bar4(0), bar4(1)-1,           0, bar4(2),        -bar4(2), bar4(0)-bar4(1),
+        1-bar4(0),           0, bar4(2)-1, bar4(1), bar4(0)-bar4(2),        -bar4(1);
+	return(this->M_invJ_.transpose()*B2*coefficients);
+}
+
+// Full specialization for order 2 in 2.5D
+template <>
+inline Eigen::Matrix<Real,3,1> Element<6,2,3>::evaluate_der_point(const Point<3>& point, const Eigen::Matrix<Real,6,1>& coefficients) const
+{
+  // Multiply by 4 for convenience in assemblying B2
+	Eigen::Matrix<Real,3,1> bar4 = 4*this->getBaryCoordinates(point);
+	Eigen::Matrix<Real,2,6> B2;
+  B2 << 1-bar4(0), bar4(1)-1,           0, bar4(2),        -bar4(2), bar4(0)-bar4(1),
+        1-bar4(0),           0, bar4(2)-1, bar4(1), bar4(0)-bar4(2),        -bar4(1);
+	return(this->M_invJ_.transpose()*B2*coefficients);
+}
+
+// Full specialization for order 2 in 3D
+// MEMO: this works assuming edges are ordered like so: (1,2), (1,3), (1,4), (2,3), (3,4), (2,4)
+template <>
+inline Eigen::Matrix<Real,3,1> Element<10,3,3>::evaluate_der_point(const Point<3>& point, const Eigen::Matrix<Real,10,1>& coefficients) const
+{
+  // Multiply by 4 for convenience in assemblying B2
+	Eigen::Matrix<Real,4,1> bar4 = 4*this->getBaryCoordinates(point);
+	Eigen::Matrix<Real,3,10> B2;
+  B2 << 1-bar4(0),  bar4(1)-1,          0,         0, bar4(0)-bar4(1),        -bar4(2),        -bar4(3),  bar4(2),        0, bar4(3),
+        1-bar4(0),           0, bar4(2)-1,         0,        -bar4(1), bar4(0)-bar4(2),        -bar4(3),  bar4(1),  bar4(3),       0,
+        1-bar4(0),           0,         0, bar4(3)-1,        -bar4(1),        -bar4(2), bar4(0)-bar4(3),        0,  bar4(2), bar4(1);
+
+	return(this->M_invJ_.transpose()*B2*coefficients);
+}
+
+
+// This covers all order 1 cases
+template <UInt NNODES, UInt mydim, UInt ndim>
+inline Real Element<NNODES,mydim,ndim>::integrate(const Eigen::Matrix<Real,NNODES,1>& coefficients) const
+{
+	// This works because of linearity! BTW, getArea actually returns the volume in 3D
+	return getArea() * coefficients.sum()/NNODES;
+}
+
+// Full specialization for order 2 in 2D
+template <>
+inline Real Element<6,2,2>::integrate(const Eigen::Matrix<Real,6,1>& coefficients) const
+{
+	// Evaluate the function on midpoints and weight each term equally
+	return getArea() * coefficients.tail(3).sum()/3;
+}
+
+// Full specialization for order 2 in 2.5D
+template <>
+inline Real Element<6,2,3>::integrate(const Eigen::Matrix<Real,6,1>& coefficients) const
+{
+	// Evaluate the function on midpoints and weight each term equally
+	return getArea() * coefficients.tail(3).sum()/3;
+}
+
+// Full specialization for order 2 in 3D
+// MEMO: this works assuming edges are ordered like so: (1,2), (1,3), (1,4), (2,3), (3,4), (2,4)
+template <>
+inline Real Element<10,3,3>::integrate(const Eigen::Matrix<Real,10,1>& coefficients) const
+{
+	// In this case a more complicated integration scheme is needed!
+	Real result=0;
+	Eigen::Matrix<Real,10,1> shape_fun;
+	shape_fun << -1, -1, -1, -1, 2, 2, 2, 2, 2, 2;
+	shape_fun.normalize();
+
+	result += -0.8*coefficients.dot(shape_fun);
+
+	Eigen::Matrix<Real,4,4> lambdas;
+	lambdas << 6, 2, 2, 2,
+						2, 6, 2, 2,
+						2, 2, 6, 2,
+						2, 2, 2, 6;
+
+	for(int i=0; i<4; ++i){
+		lambda = lambdas.row(i).normalize();
+  	shape_fun << lambda[0]*(2*lambda[0] - 1),
+									lambda[1]*(2*lambda[1] - 1),
+									lambda[2]*(2*lambda[2] - 1),
+									lambda[3]*(2*lambda[3] - 1),
+									4*lambda[1]*lambda[0],
+									4*lambda[2]*lambda[0],
+									4*lambda[3]*lambda[0],
+									4*lambda[1]*lambda[2],
+									4*lambda[2]*lambda[3],
+									4*lambda[3]*lambda[1];
+		result += 0.45*coefficients.dot(shape_fun);
+	}
+
+return result;
+
+}
+
+
+
+
+
+
+
 #endif

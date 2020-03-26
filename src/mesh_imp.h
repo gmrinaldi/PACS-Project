@@ -129,7 +129,7 @@ std::vector<Point<3> > MeshHandler<ORDER,2,3>::project(const std::vector<Point<3
 			}
 		}
 	}
-	// Note: in the 2nd order case midpoints are also considered
+	// In the 2nd order case midpoints are also considered
 	// Note: in the 1st order case this loop is skipped altogether
 	for(int i=3*num_elements; i<this->num_elements_; ++i){
 		for(int j=0; j<closest_nodes.size(); ++j){
@@ -141,7 +141,6 @@ std::vector<Point<3> > MeshHandler<ORDER,2,3>::project(const std::vector<Point<3
 			}
 		}
 	}
-
 
 	// Third compute the projections on the elements in each patch and keep the closest
 	std::vector<Point<3> > projections(points.size());
