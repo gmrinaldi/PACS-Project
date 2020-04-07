@@ -337,7 +337,7 @@ inline Real Element<10,3,3>::integrate(const Eigen::Matrix<Real,10,1>& coefficie
 
 	Eigen::Matrix<Real,4,1> lambda;
 	for(int i=0; i<4; ++i){
-		lambda = lambdas.row(i)/lambdas.row(i).sum();
+		lambda = lambdas.row(i)/12;
   	shape_fun << lambda[0]*(2*lambda[0] - 1),
 									lambda[1]*(2*lambda[1] - 1),
 									lambda[2]*(2*lambda[2] - 1),
