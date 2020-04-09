@@ -7,31 +7,58 @@ using namespace Rcpp;
 #include <iterator>
 #include <algorithm>
 #include <utility>
+#include <type_traits>
 
 using UInt=int;
 using OutputType=std::tuple<std::vector<UInt>, std::vector<bool>, std::vector<bool>, std::vector<int> >;
 
-template <typename T>
+// Helper code to check is a type is an iterator type
+template <typename... >
+using void_t = void;
+
+template <class T, class = void>
+struct is_iterator : std::false_type {};
+
+template <class T>
+struct is_iterator<T, void_t<
+    typename std::iterator_traits<T>::iterator_category
+> > : std::true_type {};
+
+// Helper class for bin sorting
+template <class T>
 class bin_list{
 public:
   bin_list(const UInt size) {bins.resize(size);}
   std::list<T>& operator[](UInt i) {return bins[i];}
 
-  template <typename Iterator>
+  template <class Iterator>
   void unlist_into(Iterator);
+
+  void unlist_into(std::vector<T>&);
+
 private:
   std::vector<std::list<T> > bins;
 };
 
-template <typename T>
-template <typename Iterator>
+template <class T>
+template <class Iterator>
 void bin_list<T>::unlist_into(Iterator it){
+  static_assert(is_iterator<Iterator>::value, "Error! Argument must be of iterator type");
   // Note the use of it++! (returns unincremented it)
   for (auto const &bin : bins)
-    for(auto const &i : bin)
+    for (auto const &i : bin)
       *(it++)=i;
 }
 
+// Note: extremely inefficient without previous memory reservation!
+template <class T>
+void bin_list<T>::unlist_into(std::vector<T>& v){
+    for (auto const &bin : bins)
+      for (auto const &i : bin)
+        v.push_back(i);
+}
+
+//
 
 template<UInt mydim>
 class simplex_container{
@@ -71,9 +98,9 @@ protected:
 
   void fill_container(const UInt* const);
   void fill_container(const UInt* const, const std::vector<UInt>);
-  void sort_by_index(const UInt);
+  void bin_sort_(const UInt);
   void bin_sort();
-  bool simplex_cmp(const IntArray &, const IntArray &);
+  bool same_simplex(const IntArray &, const IntArray &);
   void check_duplicates();
   void store_indexes();
   std::vector<bool> mark_boundary() const;
@@ -83,66 +110,72 @@ protected:
 
 };
 
-
+// This function compares two IntArrays and checks whether they represent the same simplex
+// (i.e. whether the last mydim elements are the same)
+// Note: the comparison is implemented in reverse because it is slightly more efficient
+// since the IntArrays are stored in order
 template<UInt mydim>
-bool simplex_container<mydim>::simplex_cmp(const IntArray &lhs, const IntArray &rhs){
-  for(UInt i=mydim+1; i>1; --i)
-    if(lhs[i]!=rhs[i])
-      return false;
-  return true;
+inline bool simplex_container<mydim>::same_simplex(const IntArray &lhs, const IntArray &rhs){
+  return std::equal(lhs.rbegin(),std::next(lhs.rbegin(),mydim), rhs.rbegin());
 }
 
+// This function takes care of the initialization of the main container (simplexes)
 template<UInt mydim>
 void simplex_container<mydim>::fill_container(const UInt* const elements){
- simplexes.resize((mydim+1)*num_elements);
- bin_list<IntArray> bins(num_points);
- IntArray simplex;
-  for(UInt i=0; i<num_elements; ++i){
-    for(UInt j=0; j<mydim+1; ++j){
-      simplex={i,j};
-      for(UInt k=0; k<mydim; ++k)
-        simplex[k+2]=elements[i+num_elements*((j+k+1)%(mydim+1))]-1;
-      std::sort(std::next(simplex.begin(),2),simplex.end());
-      bins[simplex.back()].push_back(simplex);
-    }
-  }
-  bins.unlist_into(simplexes.begin());
+ simplexes.reserve((mydim+1)*num_elements);
 
-  this->bin_sort();
-  this->check_duplicates();
-  this->store_indexes();
+ {
+   bin_list<IntArray> bins(num_points);
+   IntArray simplex;
+
+   for(UInt i=0; i<num_elements; ++i){
+     for(UInt j=0; j<mydim+1; ++j){
+       simplex={i,j};
+       // Rather ugly but necessary for keeping the right ordering of the edges/faces
+       for(UInt k=0; k<mydim; ++k)
+          simplex[k+2]=elements[i+num_elements*((j+k+1)%(mydim+1))]-1;
+       std::sort(std::next(simplex.begin(),2),simplex.end());
+       bins[simplex.back()].push_back(simplex);
+     }
+   }
+   bins.unlist_into(simplexes);
+ }
+
+ this->bin_sort();
+ this->check_duplicates();
+ this->store_indexes();
+
 }
 
 template<UInt mydim>
 void simplex_container<mydim>::fill_container(const UInt* const elements, const std::vector<UInt> ORDERING){
- simplexes.resize(num_elements*ORDERING.size()/mydim);
- bin_list<IntArray> bins(num_points);
- IntArray simplex;
-  for(UInt i=0; i<num_elements; ++i){
-    for(UInt j=0; j<ORDERING.size()/mydim; ++j){
-      simplex={i,j};
-      for(UInt k=0; k<mydim; ++k)
-        simplex[k+2]=elements[i+num_elements*ORDERING[mydim*j+k]]-1;
-      std::sort(std::next(simplex.begin(),2),simplex.end());
-      bins[simplex.back()].push_back(simplex);
+ simplexes.reserve(num_elements*ORDERING.size()/mydim);
+
+ {
+   bin_list<IntArray> bins(num_points);
+   IntArray simplex;
+   for(UInt i=0; i<num_elements; ++i){
+     for(UInt j=0; j<ORDERING.size()/mydim; ++j){
+     simplex={i,j};
+     for(UInt k=0; k<mydim; ++k)
+       simplex[k+2]=elements[i+num_elements*ORDERING[mydim*j+k]]-1;
+     std::sort(std::next(simplex.begin(),2),simplex.end());
+     bins[simplex.back()].push_back(simplex);
     }
-  }
-  bins.unlist_into(simplexes.begin());
+   }
+   bins.unlist_into(simplexes);
+ }
 
   this->bin_sort();
   this->check_duplicates();
   this->store_indexes();
+
 }
 
-
+// This function counts the number of distinct edges/faces in the container
 template<UInt mydim>
 inline UInt simplex_container<mydim>::count_distinct() const {
-  if (!distinct_indexes.empty())
-    return distinct_indexes.size();
-  UInt count=0;
-  for (auto const &rep : duplicates)
-    count+= !rep;
-  return count;
+  return (distinct_indexes.empty()) ? std::count(duplicates.begin(), duplicates.end(), false) : distinct_indexes.size();
 }
 
 template<UInt mydim>
@@ -166,26 +199,26 @@ OutputType simplex_container<mydim>::assemble_output() const {
 
 template<UInt mydim>
 std::vector<UInt> simplex_container<mydim>::assemble_subs() const {
-  std::vector<UInt> subsimplexes(mydim*this->count_distinct());
+  std::vector<UInt> subsimplexes;
+  subsimplexes.reserve(mydim*this->count_distinct());
 
-  auto curr=subsimplexes.begin();
-  for(UInt j=2; j<mydim+2; ++j){
-    auto rep_it=duplicates.cbegin();
+  for(UInt j=2; j<mydim+2; ++j)
     for(auto const &pos : distinct_indexes)
-      *(curr++)=simplexes[pos][j];
-  }
+      subsimplexes.push_back(simplexes[pos][j]);
+
   return subsimplexes;
 }
 
 template<UInt mydim>
 std::vector<bool> simplex_container<mydim>::mark_boundary() const {
-  std::vector<bool> boundarymarkers(this->count_distinct());
+  std::vector<bool> boundarymarkers;
+  boundarymarkers.reserve(this->count_distinct());
 
-  auto boundary=boundarymarkers.begin();
-  for (auto ind_it=distinct_indexes.cbegin(); std::next(ind_it)!=distinct_indexes.cend(); ++ind_it)
-    *(boundary++) = !(duplicates[*ind_it + 1]);
+  std::for_each(distinct_indexes.cbegin(), std::prev(distinct_indexes.cend()), [&] (UInt i) {
+    boundarymarkers.push_back(!duplicates[i+1]);
+  });
 
-  boundarymarkers.back() = (distinct_indexes.back()+1<duplicates.size())? !duplicates[distinct_indexes.back()+1] : true;
+  boundarymarkers.push_back(distinct_indexes.back()+1==duplicates.size() || !duplicates[distinct_indexes.back()+1]);
   return boundarymarkers;
 }
 
@@ -206,54 +239,71 @@ std::vector<int> simplex_container<mydim>::compute_neighbors() const {
   return neighbors;
 }
 
-
-// Function to sort container by ascending #(index+1) element of the arrays
-template<UInt mydim>
-void simplex_container<mydim>::sort_by_index(const UInt index){
-
-  bin_list<IntArray> bins(num_points);
-  for(auto const &curr : simplexes)
-    bins[curr[index]].push_back(curr);
-
-  bins.unlist_into(simplexes.begin());
-}
-
 template<UInt mydim>
 void simplex_container<mydim>::bin_sort(){
-  for(UInt i=mydim; i>1; --i)
-    sort_by_index(i);
+  bin_sort_(mydim);
 }
+
+// Recursive unction to sort container by ascending #(index+1) element of the arrays
+template<UInt mydim>
+inline void simplex_container<mydim>::bin_sort_(const UInt index){
+  // Note the scoping to avoid unnecessary storage
+  {
+    bin_list<IntArray> bins(num_points);
+    for(auto const &curr : simplexes)
+      bins[curr[index]].push_back(curr);
+    bins.unlist_into(simplexes.begin());
+  }
+
+  if(index>2)
+    bin_sort_(index-1);
+}
+
 
 template<UInt mydim>
 void simplex_container<mydim>::check_duplicates(){
-  duplicates.resize(simplexes.size(),false);
-  auto it=simplexes.cbegin();
-  for(auto rep_it=std::next(duplicates.begin()); rep_it!=duplicates.end(); ++rep_it, ++it)
-      *rep_it = simplex_cmp(*std::next(it), *it);
+  duplicates.reserve(simplexes.size());
+  // First face/edge cannot be a duplicate!
+  duplicates.push_back(false);
+  for(auto it=std::next(simplexes.cbegin()); it!=simplexes.cend(); ++it)
+    duplicates.push_back(same_simplex(*std::prev(it), *it));
 }
 
 template<UInt mydim>
 void simplex_container<mydim>::store_indexes(){
-  distinct_indexes.resize(this->count_distinct());
-  auto curr = distinct_indexes.begin();
+  distinct_indexes.reserve(this->count_distinct());
   for(UInt i=0; i<duplicates.size(); ++i)
     if(!duplicates[i])
-      *(curr++)=i;
+      distinct_indexes.push_back(i);
 }
 
-std::vector<UInt> midpoints(simplex_container<2> &edge_container){
-  std::vector<UInt> extended(edge_container.size());
+std::vector<UInt> order2extend(const simplex_container<2> &edge_container){
+  std::vector<UInt> edges_extended(edge_container.size());
   UInt offset{edge_container.get_num_points()};
   {
     UInt i=0;
     for(auto const &curr : edge_container){
       offset+= !edge_container.is_repeated(i);
-      extended[curr[0]+edge_container.get_num_elements()*curr[1]]=offset;
+      edges_extended[curr[0]+edge_container.get_num_elements()*curr[1]]=offset;
       ++i;
     }
   }
-  return extended;
+  return edges_extended;
 }
+
+std::vector<double> compute_midpoints(const double* const points, const std::vector<UInt>& edges, const UInt num_points){
+  const UInt num_edges=edges.size()/2;
+  std::vector<double> midpoints(3*num_edges);
+  for (int i=0; i<num_edges; ++i)
+    for (int j=0; j<3; ++j)
+      midpoints[i+j*num_edges]=(points[edges[i]+j*num_points]+points[edges[i+num_edges]+j*num_points])/2;
+  return midpoints;
+}
+
+// std::vector<UInt> split(simplex_container<2> &edge_container){
+//
+// }
+
 
 
 // This function will be called by R create.mesh functions (see mesh.R script)
@@ -263,7 +313,7 @@ std::vector<UInt> midpoints(simplex_container<2> &edge_container){
 
 
 // [[Rcpp::export]]
-List R_mesh_helper_2_5D(IntegerVector triangles, UInt num_points, bool extend=false){
+List R_mesh_helper_2_5D(IntegerVector triangles, NumericVector nodes, UInt num_points, bool extend=false){
   // triangle.size() is a multiple of 3 by construction!
   const UInt n=triangles.length(), num_triangles=n/3;
 
@@ -282,7 +332,6 @@ List R_mesh_helper_2_5D(IntegerVector triangles, UInt num_points, bool extend=fa
 
   NumericVector R_edges(edges.size());
   LogicalVector R_edgesmarkers(edgesmarkers.size());
-  LogicalVector R_nodesmarkers(nodesmarkers.size());
   NumericVector R_neighbors(neighbors.size());
 
 
@@ -292,21 +341,35 @@ List R_mesh_helper_2_5D(IntegerVector triangles, UInt num_points, bool extend=fa
   for (UInt i=0; i<edgesmarkers.size(); ++i)
     R_edgesmarkers[i]=edgesmarkers[i];
 
-  for (UInt i=0; i<nodesmarkers.size(); ++i)
-    R_nodesmarkers[i]=nodesmarkers[i];
-
   for (UInt i=0; i<neighbors.size(); ++i)
     R_neighbors[i]=neighbors[i]+(neighbors[i]>=0);
 
   if(extend){
-    std::vector<UInt> extended{midpoints(edges_list)};
-    NumericVector R_extended(n);
+    std::vector<UInt> extended{order2extend(edges_list)};
+    IntegerVector R_extended(n+extended.size());
     for(UInt i=0; i<n; ++i)
-      R_extended[i]=extended[i];
+      R_extended[i]=triangles[i];
+    for(UInt i=0; i<extended.size(); ++i)
+      R_extended[i+n]=extended[i];
 
-    List L = List::create(Named("edges")=R_edges, _["edgesmarkers"]=R_edgesmarkers, _["nodesmarkers"]=R_nodesmarkers, _["neighbors"]=R_neighbors, _["extra"]=R_extended);
+    std::vector<double> midpoints{compute_midpoints(&nodes[0], edges, num_points)};
+    NumericVector R_nodes(3*num_points+midpoints.size());
+    for(UInt i=0; i<3*num_points; ++i)
+      R_nodes[i]=nodes[i];
+    for(UInt i=0; i<midpoints.size(); ++i)
+      R_nodes[i+3*num_points]=midpoints[i];
+
+    LogicalVector R_nodesmarkers(nodesmarkers.size()+midpoints.size()/3);
+    for (UInt i=0; i<nodesmarkers.size(); ++i)
+      R_nodesmarkers[i]=nodesmarkers[i];
+
+    List L = List::create(Named("edges")=R_edges, _["edgesmarkers"]=R_edgesmarkers, _["nodesmarkers"]=R_nodesmarkers, _["neighbors"]=R_neighbors, _["triangles"]=R_extended, _["nodes"]=R_nodes);
     return L;
   }
+
+  LogicalVector R_nodesmarkers(nodesmarkers.size());
+  for (UInt i=0; i<nodesmarkers.size(); ++i)
+    R_nodesmarkers[i]=nodesmarkers[i];
 
   List L = List::create(Named("edges")=R_edges, _["edgesmarkers"]=R_edgesmarkers, _["nodesmarkers"]=R_nodesmarkers, _["neighbors"]=R_neighbors);
   return L;
@@ -360,7 +423,7 @@ List R_mesh_helper_3D(IntegerVector tetrahedrons, UInt num_points, bool extend=f
     for (UInt i=0; i<edges.size(); ++i)
       R_edges[i]=edges[i]+1;
 
-    std::vector<UInt> extended{midpoints(edges_list)};
+    std::vector<UInt> extended{order2extend(edges_list)};
     NumericVector R_extended(extended.size());
     for(UInt i=0; i<extended.size(); ++i)
       R_extended[i]=extended[i];

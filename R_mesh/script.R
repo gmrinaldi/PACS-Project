@@ -1,11 +1,16 @@
+testN<-10^7
+nodes<-cbind(runif(testN),runif(testN),runif(testN))
+triangles2_5D<-cbind(seq_len(testN-2),seq_len(testN-2)+1,seq_len(testN-2)+2)
+triangles3D<-cbind(seq_len(testN-3),seq_len(testN-3)+1,seq_len(testN-3)+2,seq_len(testN-3)+3)
+
 library(fdaPDE)
 library(Rcpp)
 
-setwd("~/Desktop/PACS/Progetto/Cose/Prove_cpp/R_mesh")
+setwd("~/Desktop/PACS/Progetto/PACS-Project/R_mesh")
 sourceCpp("R_mesh.cpp")
 
 data(hub2.5D)
-edges_CPP<-R_mesh_helper_2_5D(as.vector((hub2.5D.triangles)),nrow(hub2.5D.nodes),TRUE)
+edges_CPP<-R_mesh_helper_2_5D(hub2.5D.triangles,hub2.5D.nodes,nrow(hub2.5D.nodes),TRUE)
 
 data(sphere3Ddata)
 
