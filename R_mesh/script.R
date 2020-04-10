@@ -10,7 +10,7 @@ setwd("~/Desktop/PACS/Progetto/PACS-Project/R_mesh")
 sourceCpp("R_mesh.cpp")
 
 data(hub2.5D)
-edges_CPP<-R_mesh_helper_2_5D(hub2.5D.triangles,hub2.5D.nodes,nrow(hub2.5D.nodes),TRUE)
+edges_CPP<-R_mesh_helper_2_5D(hub2.5D.triangles,hub2.5D.nodes,nrow(hub2.5D.nodes))
 
 data(sphere3Ddata)
 

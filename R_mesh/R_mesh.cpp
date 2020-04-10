@@ -58,14 +58,40 @@ void bin_list<T>::unlist_into(std::vector<T>& v){
         v.push_back(i);
 }
 
-//
+template<UInt mydim>
+class simplex{
+public:
+  using simplex_const_it_t=decltype(std::declval<std::array<UInt, mydim> >().cbegin());
+  using simplex_const_rev_it_t=decltype(std::declval<std::array<UInt, mydim> >().crbegin());
+
+  simplex()=delete;
+  simplex(UInt element_, UInt subelement_, std::array<UInt, mydim> nodes_) :
+    element(element_), subelement(subelement_), nodes(nodes_) {}
+
+  UInt i() const {return element;}
+  UInt j() const {return subelement;}
+  UInt operator[](UInt i) const {return nodes[i];}
+
+  friend bool operator==(const simplex& lhs, const simplex& rhs) {return std::equal(lhs.rbegin(),lhs.rend(), rhs.rbegin());}
+  friend bool operator!=(const simplex& lhs, const simplex& rhs) {return !(lhs==rhs);}
+
+  simplex_const_it_t begin() const {return nodes.begin();}
+  simplex_const_it_t end() const {return nodes.end();}
+  simplex_const_rev_it_t rbegin() const {return nodes.rbegin();}
+  simplex_const_rev_it_t rend() const {return nodes.rend();}
+
+private:
+  UInt element;
+  UInt subelement;
+  std::array<UInt, mydim> nodes;
+};
 
 template<UInt mydim>
 class simplex_container{
 public:
   static_assert(mydim==2 || mydim==3, "Error: this is intended for triangles or tetrahedrons only! See");
-  using IntArray=std::array<UInt,mydim+2>;
-  using SimplexConstIt=decltype(std::declval<std::vector<IntArray> >().cbegin());
+  using simplex_t=simplex<mydim>;
+  using simplex_const_it_t=decltype(std::declval<std::vector<simplex_t> >().cbegin());
 
   simplex_container()=delete;
 
@@ -76,11 +102,11 @@ public:
       elements(elements_), num_elements(num_elements_), num_points(num_points_) {this->fill_container(elements_, ORDERING);}
 
   OutputType assemble_output() const;
-  std::vector<int> get_simplexes() const {return this->assemble_subs();};
+  std::vector<UInt> get_simplexes() const {return this->assemble_subs();};
 
-  IntArray operator[](UInt i) const {return simplexes[i];}
-  SimplexConstIt begin() const {return simplexes.begin();}
-  SimplexConstIt end() const {return simplexes.end();}
+  simplex_t operator[](UInt i) const {return simplexes[i];}
+  simplex_const_it_t begin() const {return simplexes.begin();}
+  simplex_const_it_t end() const {return simplexes.end();}
 
   bool is_repeated(UInt i) const {return duplicates[i];}
 
@@ -89,7 +115,7 @@ public:
   UInt get_num_elements() const {return num_elements;}
 
 protected:
-  std::vector<IntArray> simplexes;
+  std::vector<simplex_t> simplexes;
   std::vector<bool> duplicates;
   std::vector<UInt> distinct_indexes;
   const UInt num_elements;
@@ -98,9 +124,8 @@ protected:
 
   void fill_container(const UInt* const);
   void fill_container(const UInt* const, const std::vector<UInt>);
-  void bin_sort_(const UInt);
+  void bin_sort_(const UInt, std::vector<UInt>&);
   void bin_sort();
-  bool same_simplex(const IntArray &, const IntArray &);
   void check_duplicates();
   void store_indexes();
   std::vector<bool> mark_boundary() const;
@@ -110,35 +135,22 @@ protected:
 
 };
 
-// This function compares two IntArrays and checks whether they represent the same simplex
-// (i.e. whether the last mydim elements are the same)
-// Note: the comparison is implemented in reverse because it is slightly more efficient
-// since the IntArrays are stored in order
-template<UInt mydim>
-inline bool simplex_container<mydim>::same_simplex(const IntArray &lhs, const IntArray &rhs){
-  return std::equal(lhs.rbegin(),std::next(lhs.rbegin(),mydim), rhs.rbegin());
-}
-
 // This function takes care of the initialization of the main container (simplexes)
 template<UInt mydim>
 void simplex_container<mydim>::fill_container(const UInt* const elements){
  simplexes.reserve((mydim+1)*num_elements);
 
  {
-   bin_list<IntArray> bins(num_points);
-   IntArray simplex;
-
+   std::array<UInt,mydim> curr;
    for(UInt i=0; i<num_elements; ++i){
      for(UInt j=0; j<mydim+1; ++j){
-       simplex={i,j};
        // Rather ugly but necessary for keeping the right ordering of the edges/faces
        for(UInt k=0; k<mydim; ++k)
-          simplex[k+2]=elements[i+num_elements*((j+k+1)%(mydim+1))]-1;
-       std::sort(std::next(simplex.begin(),2),simplex.end());
-       bins[simplex.back()].push_back(simplex);
+          curr[k]=elements[i+num_elements*((j+k+1)%(mydim+1))]-1;
+       std::sort(curr.begin(), curr.end());
+       simplexes.emplace_back(simplex_t(i,j,curr));
      }
    }
-   bins.unlist_into(simplexes);
  }
 
  this->bin_sort();
@@ -152,18 +164,15 @@ void simplex_container<mydim>::fill_container(const UInt* const elements, const 
  simplexes.reserve(num_elements*ORDERING.size()/mydim);
 
  {
-   bin_list<IntArray> bins(num_points);
-   IntArray simplex;
+   std::array<UInt,mydim> curr;
    for(UInt i=0; i<num_elements; ++i){
      for(UInt j=0; j<ORDERING.size()/mydim; ++j){
-     simplex={i,j};
-     for(UInt k=0; k<mydim; ++k)
-       simplex[k+2]=elements[i+num_elements*ORDERING[mydim*j+k]]-1;
-     std::sort(std::next(simplex.begin(),2),simplex.end());
-     bins[simplex.back()].push_back(simplex);
-    }
+       for(UInt k=0; k<mydim; ++k)
+        curr[k]=elements[i+num_elements*ORDERING[mydim*j+k]]-1;
+       std::sort(curr.begin(), curr.end());
+       simplexes.emplace_back(simplex_t(i,j,curr));
+     }
    }
-   bins.unlist_into(simplexes);
  }
 
   this->bin_sort();
@@ -202,7 +211,7 @@ std::vector<UInt> simplex_container<mydim>::assemble_subs() const {
   std::vector<UInt> subsimplexes;
   subsimplexes.reserve(mydim*this->count_distinct());
 
-  for(UInt j=2; j<mydim+2; ++j)
+  for(UInt j=0; j<mydim; ++j)
     for(auto const &pos : distinct_indexes)
       subsimplexes.push_back(simplexes[pos][j]);
 
@@ -227,37 +236,68 @@ std::vector<int> simplex_container<mydim>::compute_neighbors() const {
   std::vector<int> neighbors(simplexes.size(), -1);
 
   auto rep_it=duplicates.cbegin();
-  IntArray prev{simplexes.front()};
+  simplex_t prev{simplexes.front()};
   for (auto const &curr : simplexes){
     // Note: the first simplex cannot be a duplicate!
     if (*(rep_it++)){
-      neighbors[curr[0]+curr[1]*num_elements]=prev[0];
-      neighbors[prev[0]+prev[1]*num_elements]=curr[0];
+      neighbors[curr.i()+curr.j()*num_elements]=prev.i();
+      neighbors[prev.i()+prev.j()*num_elements]=curr.i();
     }
     prev=curr;
   }
   return neighbors;
 }
 
+
 template<UInt mydim>
 void simplex_container<mydim>::bin_sort(){
-  bin_sort_(mydim);
+  std::vector<UInt> positions;
+  positions.reserve(simplexes.size());
+  for(UInt i=0; i<simplexes.size(); ++i)
+    positions.push_back(i);
+
+  bin_sort_(mydim-1, positions);
+
+  for(UInt i=0; i<positions.size(); ++i){
+    UInt curr=i;
+    while(i!=positions[curr]){
+      UInt next=positions[curr];
+      std::swap(simplexes[curr],simplexes[next]);
+      positions[curr]=curr;
+      curr=next;
+    }
+    positions[curr]=curr;
+  }
 }
 
 // Recursive unction to sort container by ascending #(index+1) element of the arrays
 template<UInt mydim>
-inline void simplex_container<mydim>::bin_sort_(const UInt index){
-  // Note the scoping to avoid unnecessary storage
+void simplex_container<mydim>::bin_sort_(const UInt index, std::vector<UInt> &positions){
+  // Note the scoping to avoid unnecessary storage!
   {
-    bin_list<IntArray> bins(num_points);
-    for(auto const &curr : simplexes)
-      bins[curr[index]].push_back(curr);
-    bins.unlist_into(simplexes.begin());
+    std::vector<UInt> counts(num_points);
+    for(auto const &pos : positions)
+      ++counts[simplexes[pos][index]];
+
+    {
+      UInt offset{0};
+      for (auto &curr : counts){
+        UInt count{curr};
+        curr=offset;
+        offset+=count;
+      }
+    }
+
+    std::vector<UInt> positions_temp(positions.size());
+    for(auto const &pos : positions)
+      positions_temp[counts[simplexes[pos][index]]++]=pos;
+    positions=std::move(positions_temp);
   }
 
-  if(index>2)
-    bin_sort_(index-1);
+  if(index)
+    bin_sort_(index-1, positions);
 }
+
 
 
 template<UInt mydim>
@@ -266,7 +306,7 @@ void simplex_container<mydim>::check_duplicates(){
   // First face/edge cannot be a duplicate!
   duplicates.push_back(false);
   for(auto it=std::next(simplexes.cbegin()); it!=simplexes.cend(); ++it)
-    duplicates.push_back(same_simplex(*std::prev(it), *it));
+    duplicates.push_back(*std::prev(it) == *it);
 }
 
 template<UInt mydim>
@@ -284,7 +324,7 @@ std::vector<UInt> order2extend(const simplex_container<2> &edge_container){
     UInt i=0;
     for(auto const &curr : edge_container){
       offset+= !edge_container.is_repeated(i);
-      edges_extended[curr[0]+edge_container.get_num_elements()*curr[1]]=offset;
+      edges_extended[curr.i()+edge_container.get_num_elements()*curr.j()]=offset;
       ++i;
     }
   }
