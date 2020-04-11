@@ -1,6 +1,8 @@
-testN<-10^7
+testN<-10^8
+time<-0
 nodes<-cbind(runif(testN),runif(testN),runif(testN))
 triangles2_5D<-cbind(seq_len(testN-2),seq_len(testN-2)+1,seq_len(testN-2)+2)
+# triangles2_5D<-rbind(triangles2_5D,cbind(seq_len(testN-2),seq_len(testN-2)+2,seq_len(testN-2)+3))
 triangles3D<-cbind(seq_len(testN-3),seq_len(testN-3)+1,seq_len(testN-3)+2,seq_len(testN-3)+3)
 
 library(fdaPDE)

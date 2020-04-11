@@ -13,7 +13,6 @@ constexpr UInt factorial(UInt n) {
     return n ? (n * factorial(n - 1)) : 1;
 }
 
-
 //!  This class gives some common methods to all mesh objects.
 class Identifier{
 public:
@@ -51,27 +50,35 @@ class Point : public Identifier{
     Point(): Identifier(NVAL, NVAL) {};
     Point(pointCoords coord) :
               Identifier(NVAL, NVAL), coord_(coord) {}
+    Point(Id id, pointCoords coord) :
+              Identifier(id), coord_(coord) {}
     Point(Id id, BcId bcId, pointCoords coord) :
               Identifier(id, bcId), coord_(coord) {}
 
     Real operator[](UInt i) const {return coord_[i];}
+    Real distance(const Point&) const;
 
-    // Overload the "-" operator to take 2 points of the same dimension and compute
-    // the coordinate difference.
-    // It returns an array for convenience, keep it in mind!
+    // Overload the "+" ("-") operator to take 2 points of the same dimension and compute
+    // the coordinate sum (difference).
+    // Note: they return an array for convenience, but since an array is convertible to Point
+    // something like this is fine Point<ndim> a, b; // Point<ndim> c=a-b;
+    friend pointCoords operator +(const Point& lhs, const Point& rhs){
+      pointCoords diff{lhs.coord_};
+      for (int i=0; i<ndim; ++i)
+          diff[i]+=rhs[i];
+      return diff;
+    };
+
     friend pointCoords operator -(const Point& lhs, const Point& rhs){
-      pointCoords diff(lhs.coord_);
+      pointCoords diff{lhs.coord_};
       for (int i=0; i<ndim; ++i)
           diff[i]-=rhs[i];
       return diff;
     };
 
+
     friend Real distance(const Point& lhs, const Point& rhs){
-      pointCoords diff=lhs-rhs;
-      Real dist=0;
-      for (auto const &i : diff)
-        dist+=diff*diff;
-      return std::sqrt(dist);
+      return lhs.distance(rhs);
     };
 
   private:
@@ -164,15 +171,35 @@ public:
 	Point<ndim> operator[](UInt i) const {return points_[i];}
 
 	Real getDetJ() const {return detJ_;}
-	const Eigen::Matrix<Real,ndim,mydim>& getM_J() const {return M_J_;}
-	const Eigen::Matrix<Real,mydim,ndim>& getM_invJ() const {return M_invJ_;} //in 2.5D this is actually the pseudoinverse!
-	const Eigen::Matrix<Real,mydim,mydim>& getMetric() const {return metric_;}
+	Eigen::Matrix<Real,ndim,mydim>& getM_J() const {return M_J_;}
+	Eigen::Matrix<Real,mydim,ndim>& getM_invJ() const {return M_invJ_;} //in 2.5D this is actually the pseudoinverse!
+	Eigen::Matrix<Real,mydim,mydim>& getMetric() const {return metric_;}
 
   //! A member that computes the barycentric coordinates.
 	Eigen::Matrix<Real,mydim+1,1> getBaryCoordinates(const Point<ndim>& point) const;
 
-	//! A member that prints the main properties of the triangle
-	void print(std::ostream & out) const;
+  //! A member that tests if a Point is located inside an Element.
+  virtual bool isPointInside(const Point<ndim>& point) const;
+
+  //! A member returning the area/volume of the element
+  virtual Real getMeasure() const =0;
+
+  //! A member to evaluate functions in a point inside the element
+  Real evaluate_point(const Point<ndim>& point, const Eigen::Matrix<Real,NNODES,1>&) const;
+  //! A member to evaluate derivatives at a point inside the element
+  Eigen::Matrix<Real,ndim,1> evaluate_der_point(const Point<ndim>& point, const Eigen::Matrix<Real,NNODES,1>&) const;
+  //! A member to evaluate integrals on the element
+  Real integrate(const Eigen::Matrix<Real,NNODES,1>&) const;
+
+	//! Overload the << operator to easily print element info (note: define it in class
+  // to avoid a forward declaration)
+  friend std::ostream& operator<<(std::ostream& os, const ElementCore& el){
+    os<<"Element "<< el.getId() <<": ";
+    for (UInt i=0; i<NNODES; ++i)
+      os<<el[i].getId()<<" ";
+    os<<std::endl;
+    return os;
+  }
 
 protected:
 	elementPoints points_;
@@ -199,24 +226,16 @@ public:
   Element(Id id, const std::array<Point<ndim>,NNODES>& points) :
         ElementCore<NNODES,mydim,ndim>(id,points) {this->computeProperties();}
 
-  //! A member returning the area/volume of the element
-  // Note: both are needed for compatibility issues with previous implementation
-  Real getArea() const {return std::abs(this->detJ_)/factorial(ndim);}
-  Real getVolume() const {return std::abs(this->detJ_)/factorial(ndim);}
 
-  //! A member that tests if a Point is located inside an Element.
-  bool isPointInside(const Point<ndim>& point) const;
+  //! A member returning the area/volume of the element
+  Real getMeasure() const {return std::abs(this->detJ_)/factorial(ndim);}
+  //! Additional members returning the area/volume of the element
+  // Note: both are needed for ease of use
+  Real getArea() const {return this->getMeasure();}
+  Real getVolume() const {return this->getMeasure();}
 
   //! A member that verifies which edge/face separates the Triangle/Tetrahedron from a Point.
   int getPointDirection(const Point<ndim>& point) const;
-
-  //! A member to evaluate functions in a point inside the element
-  Real evaluate_point(const Point<ndim>& point, const Eigen::Matrix<Real,NNODES,1>& coefficients) const;
-  //! A member to evaluate derivatives at a point inside the element
-  Eigen::Matrix<Real,ndim,1> evaluate_der_point(const Point<ndim>& point, const Eigen::Matrix<Real,NNODES,1>& coefficients) const;
-  //! A member to evaluate integrals on the element
-  Real integrate(const Eigen::Matrix<Real,NNODES,1>& coefficients) const;
-
 
 private:
   void computeProperties();
@@ -236,27 +255,22 @@ public:
   Element(Id id, const std::array<Point<3>,NNODES>& points) :
         ElementCore<NNODES,2,3>(id,points) {this->computeProperties();}
 
+
   //! A member returning the area of the element
   // Mind the sqrt!
-  Real getArea() const {return std::sqrt(this->detJ_)/2;}
+  Real getMeasure() const {return std::sqrt(this->detJ_)/2;}
+  //! Additional member returning the area added for ease of use
+  Real getArea() const {return this->getMeasure();}
 
   //! A member that tests if a Point is located inside an Element.
   // Note: this is implemented (slightly) differently in this case
-  // In particular one has to check that the point lies on the same plane as the triangle!
+  // because one has to check that the point lies on the same plane as the triangle!
   bool isPointInside(const Point<3>& point) const;
 
   // This function projects a 3D point (XYZ coordinates!) onto the element
   // Note: if the projection lies outside the element the function returns
   // the closest point on the boundary of the element instead
   Point<3> computeProjection(const Point<3>& point) const;
-
-  //! A member to evaluate functions in a point inside the element
-  Real evaluate_point(const Point<3>& point, const Eigen::Matrix<Real,NNODES,1>& coefficients) const;
-  //! A member to evaluate derivatives at a point inside the element
-  Eigen::Matrix<Real,3,1> evaluate_der_point(const Point<3>& point, const Eigen::Matrix<Real,NNODES,1>& coefficients) const;
-  //! A member to evaluate integrals on the element
-  Real integrate(const Eigen::Matrix<Real,NNODES,1>& coefficients) const;
-
 
 private:
   void computeProperties();

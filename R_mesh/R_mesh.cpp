@@ -12,51 +12,33 @@ using namespace Rcpp;
 using UInt=int;
 using OutputType=std::tuple<std::vector<UInt>, std::vector<bool>, std::vector<bool>, std::vector<int> >;
 
-// Helper code to check is a type is an iterator type
-template <typename... >
-using void_t = void;
-
-template <class T, class = void>
-struct is_iterator : std::false_type {};
-
-template <class T>
-struct is_iterator<T, void_t<
-    typename std::iterator_traits<T>::iterator_category
-> > : std::true_type {};
-
-// Helper class for bin sorting
-template <class T>
-class bin_list{
-public:
-  bin_list(const UInt size) {bins.resize(size);}
-  std::list<T>& operator[](UInt i) {return bins[i];}
-
-  template <class Iterator>
-  void unlist_into(Iterator);
-
-  void unlist_into(std::vector<T>&);
-
-private:
-  std::vector<std::list<T> > bins;
-};
-
-template <class T>
-template <class Iterator>
-void bin_list<T>::unlist_into(Iterator it){
-  static_assert(is_iterator<Iterator>::value, "Error! Argument must be of iterator type");
-  // Note the use of it++! (returns unincremented it)
-  for (auto const &bin : bins)
-    for (auto const &i : bin)
-      *(it++)=i;
-}
-
-// Note: extremely inefficient without previous memory reservation!
-template <class T>
-void bin_list<T>::unlist_into(std::vector<T>& v){
-    for (auto const &bin : bins)
-      for (auto const &i : bin)
-        v.push_back(i);
-}
+// // Helper code to check is a type is an iterator type
+// template <typename... >
+// using void_t = void;
+//
+// template <class T, class = void>
+// struct is_iterator : std::false_type {};
+//
+// template <class T>
+// struct is_iterator<T, void_t<
+//     typename std::iterator_traits<T>::iterator_category
+// > > : std::true_type {};
+//
+//
+// template <typename T, UInt ncols>
+// class byRow{
+// public:
+//   static_assert(is_integral<T>::value, "Error! Value must be of integral type");
+//
+//   rowView(UInt nrows_, std::vector<value_t> &m_) :
+//             nrows(nrows_), m(m_) {}
+//
+// private:
+//   const UInt nrows;
+//   std::vector<T> &m;
+//   std::array<T,ncols> row;
+//
+// }
 
 template<UInt mydim>
 class simplex{
@@ -124,6 +106,7 @@ protected:
 
   void fill_container(const UInt* const);
   void fill_container(const UInt* const, const std::vector<UInt>);
+  std::vector<UInt> compute_offsets(const UInt, std::vector<UInt>&);
   void bin_sort_(const UInt, std::vector<UInt>&);
   void bin_sort();
   void check_duplicates();
@@ -275,30 +258,40 @@ template<UInt mydim>
 void simplex_container<mydim>::bin_sort_(const UInt index, std::vector<UInt> &positions){
   // Note the scoping to avoid unnecessary storage!
   {
-    std::vector<UInt> counts(num_points);
-    for(auto const &pos : positions)
-      ++counts[simplexes[pos][index]];
-
-    {
-      UInt offset{0};
-      for (auto &curr : counts){
-        UInt count{curr};
-        curr=offset;
-        offset+=count;
+    std::vector<UInt> offsets{compute_offsets(index, positions)};
+    for(UInt i=0; i<positions.size(); ++i){
+      while(i!=offsets[i]){
+        UInt next=offsets[i];
+        std::swap(positions[i],positions[next]);
+        std::swap(offsets[i],offsets[next]);
       }
     }
-
-    std::vector<UInt> positions_temp(positions.size());
-    for(auto const &pos : positions)
-      positions_temp[counts[simplexes[pos][index]]++]=pos;
-    positions=std::move(positions_temp);
   }
 
   if(index)
     bin_sort_(index-1, positions);
 }
 
+template<UInt mydim>
+std::vector<UInt> simplex_container<mydim>::compute_offsets(const UInt index, std::vector<UInt> &positions){
+  std::vector<UInt> counts(num_points);
+  for(auto const &pos : positions)
+    ++counts[simplexes[pos][index]];
 
+  UInt offset{0};
+  for (auto &curr : counts){
+    UInt count{curr};
+    curr=offset;
+    offset+=count;
+  }
+
+  std::vector<UInt> offsets;
+  offsets.reserve(positions.size());
+  for (auto const &pos : positions)
+    offsets.push_back(counts[simplexes[pos][index]]++);
+  return offsets;
+
+}
 
 template<UInt mydim>
 void simplex_container<mydim>::check_duplicates(){
@@ -341,6 +334,7 @@ std::vector<double> compute_midpoints(const double* const points, const std::vec
 }
 
 // std::vector<UInt> split(simplex_container<2> &edge_container){
+//   std::vector<UInt> edges_extended(order2extend(edge_container));
 //
 // }
 

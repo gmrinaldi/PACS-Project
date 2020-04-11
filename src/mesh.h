@@ -37,14 +37,13 @@ public:
   MeshHandlerCore(const MeshHandlerCore&) = delete;
   MeshHandlerCore &operator=(const MeshHandlerCore&) = delete;
 
-	virtual ~MeshHandlerCore(){};
+	virtual ~MeshHandlerCore()=0;
 
 	//! A normal member returning an unsigned integer value.
 		/*!
 			\return The number of nodes in the mesh
 		*/
-  // We make this a pure virtual function just to turn MeshHandlerCore into an abstract class
-	virtual UInt num_nodes() const = 0;
+	UInt num_nodes() const {return num_nodes_/ndim;}
 
 	//! A normal member returning an unsigned integer value.
 		/*!
@@ -118,8 +117,6 @@ public:
   MeshHandler(Real* points, UInt* sides, UInt* elements, UInt* neighbors, UInt num_nodes, UInt num_sides, UInt num_elements) :
       MeshHandlerCore<ORDER,mydim,ndim>(points, sides, elements, neighbors, num_nodes, num_sides, num_elements) {}
 
-  UInt num_nodes() const {return this->num_nodes_/ndim;}
-
   //! A normal member returning the element on which a point is located
     /*!
     * This method implements a Visibility Walk Algorithm (further details in: Walking in a triangulation, Devillers et al)
@@ -139,13 +136,11 @@ public:
   MeshHandler(Real* points, UInt* sides, UInt* elements, UInt* neighbors, UInt num_nodes, UInt num_sides, UInt num_elements) :
       MeshHandlerCore<ORDER,2,3>(points, sides, elements, neighbors, num_nodes, num_sides, num_elements) {}
 
-  UInt num_nodes() const {return this->num_nodes_/3;}
-
   // This function projects points onto the mesh
-  std::vector<Point<3> > project(const std::vector<Point<3> > points) const;
+  std::vector<Point<3> > project(const std::vector<Point<3> >&) const;
 private:
   // This function computes the closest nodes to the given points and returns their index
-  std::vector<UInt> find_closest(const std::vector<Point<3> > points) const;
+  std::vector<UInt> find_closest(const std::vector<Point<3> >&) const;
 };
 
 

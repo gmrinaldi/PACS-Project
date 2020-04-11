@@ -82,48 +82,76 @@ Element<how_many_nodes(ORDER,mydim),mydim,ndim> MeshHandler<ORDER,mydim,ndim>::f
 	return current_element;
 }
 
-template <UInt ORDER>
-std::vector<UInt> MeshHandler<ORDER,2,3>::find_closest(const std::vector<Point<3> > points) const{
-	// Container for ID and distances of closest points
-	std::vector<std::pair<UInt,Real> > closest_to(points.size());
-	Point<3> curr_node=this->getPoint(0);
+// template <UInt ORDER>
+// std::vector<UInt> MeshHandler<ORDER,2,3>::find_closest(const std::vector<Point<3> > &inpoints) const{
+// 	// Container for ID and distances of closest points
+// 	std::vector<std::pair<UInt,Real> > closest_to;
+// 	closest_to.reserve(inpoints.size());
+//
+// 	Point<3> curr_node{this->getPoint(0)};
+// 	for(auto const point : inpoints)
+// 		closest_to.emplace_back(0,distance(curr_node,point));
+//
+// 	for(int i=1; i<this->num_nodes(); ++i){
+// 		curr_node=this->getPoint(i);
+// 		for(int j=0; j<inpoints.size(); ++j){
+// 			Real dist=distance(curr_node,inpoints[j]);
+// 			if (dist<closest_to[j].second)
+// 				closest_to[j]=std::make_pair(i,dist);
+// 		}
+// 	}
+//
+// 	std::vector<UInt> closest_ID;
+// 	closest_ID.reserve(inpoints.size());
+// 	for (auto const c : closest_to)
+// 		closest_ID.push_back(c.first);
+//
+// 	return closest_ID;
+// }
+//
 
-	for(int i=0; i<points.size(); ++i)
-		closest_to[i]=std::make_pair(0,distance(curr_node,points[i]));
+template <UInt ORDER>
+std::vector<UInt> MeshHandler<ORDER,2,3>::find_closest(const std::vector<Point<3> > &inpoints) const{
+
+	std::vector<UInt> closest_ID(inpoints.size());
+	std::vector<Real> distances;
+	distances.reserve(inpoints.size());
+
+	Point<3> curr_node{this->getPoint(0)};
+	for (auto const point : inpoints)
+		distances.push_back(distance(curr_node,point));
 
 	for(int i=1; i<this->num_nodes(); ++i){
 		curr_node=this->getPoint(i);
-		for(int j=0; j<points.size(); ++j){
-			// Note: it is fine to declare a variable inside a loop for built-in types!
-			Real dist=distance(curr_node,points[j]);
-			if (dist<closest_to[j].second)
-				closest_to[j]=std::make_pair(i,dist);
+		for(int j=0; j<inpoints.size(); ++j){
+			Real dist=distance(curr_node,inpoints[j]);
+			if (dist<distances[j]){
+				distances[j]=dist;
+				closest_ID[j]=i;
+			}
 		}
 	}
-
-	std::vector<UInt> closest_ID(points.size());
-	for (int i=0; i<points.size(); ++i)
-		closest_ID[i] = closest_to[i].first;
 
 	return closest_ID;
 }
 
 
-template <UInt ORDER>
-std::vector<Point<3> > MeshHandler<ORDER,2,3>::project(const std::vector<Point<3> > points) const{
 
-	UInt const num_elements = this->num_elements();
+template <UInt ORDER>
+std::vector<Point<3> > MeshHandler<ORDER,2,3>::project(const std::vector<Point<3> > &inpoints) const{
+
+	const UInt num_elements = this->num_elements();
 	// First find the closest node for each point
-	std::vector<UInt> closest_nodes=this->find_closest(points);
+	std::vector<UInt> closest_nodes{this->find_closest(inpoints)};
 
 	// Second build up a patch of elements on which to project
-	std::vector<std::vector<UInt> > patches(points.size());
+	std::vector<std::vector<UInt> > patches(inpoints.size());
 
 	// Loop over the elements (first consider only true nodes)
 	for(int i=0; i<3*num_elements; ++i){
 		for(int j=0; j<closest_nodes.size(); ++j){
 			if(closest_nodes[j]==this->elements_[i]){
-				patches[j].push_back(i%this->num_elements());
+				patches[j].push_back(i%num_elements);
 				// Add to the patch the elements that lie opposite the closest node
 				patches[j].push_back(this->neighbors_[i]);
 			}
@@ -143,22 +171,21 @@ std::vector<Point<3> > MeshHandler<ORDER,2,3>::project(const std::vector<Point<3
 	}
 
 	// Third compute the projections on the elements in each patch and keep the closest
-	std::vector<Point<3> > projections(points.size());
+	std::vector<Point<3> > projections(inpoints.size());
 	Element<how_many_nodes(ORDER,2),2,3> current_element;
 	Point<3> proj_point;
 
-	for(int i=0; i<points.size(); ++i){
+	for(int i=0; i<inpoints.size(); ++i){
 		current_element = this->getElement(patches[i][0]);
-		projections[i] = current_element.computeProjection(points[i]);
-		// Note: it is fine to declare a variable inside a loop for built-in types!
-		Real dist = distance(projections[i], points[i]);
+		projections[i] = current_element.computeProjection(inpoints[i]);
+		Real dist = distance(projections[i], inpoints[i]);
 
 		for(int j=1; j<patches[i].size(); ++j){
 			current_element = this->getElement(patches[i][j]);
-			proj_point = current_element.computeProjection(points[i]);
-			if(distance(proj_point, points[i])<dist){
+			proj_point = current_element.computeProjection(inpoints[i]);
+			if(distance(proj_point, inpoints[i])<dist){
 				projections[i] = proj_point;
-				dist = distance(projections[i], points[i]);
+				dist = distance(projections[i], inpoints[i]);
 			}
 		}
 	}
