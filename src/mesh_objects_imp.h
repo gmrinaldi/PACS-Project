@@ -2,7 +2,8 @@
 #ifndef __MESH_OBJECTS_IMP_HPP__
 #define __MESH_OBJECTS_IMP_HPP__
 
-// Member squared distance and distance functions for class Point
+// Member functions for class Point
+// This function returns the squared distance between "this" point and other
 template <UInt ndim>
 inline Real Point<ndim>::dist2(const Point<ndim> &other) const {
 	Real dist2{0.};
@@ -11,6 +12,7 @@ inline Real Point<ndim>::dist2(const Point<ndim> &other) const {
 	return dist2;
 }
 
+// This function returns the distance between "this" point and other
 template <UInt ndim>
 inline Real Point<ndim>::dist(const Point<ndim> &other) const {
 	return std::sqrt(this->dist2(other));
@@ -23,7 +25,7 @@ Eigen::Matrix<Real,mydim+1,1> ElementCore<NNODES,mydim,ndim>::getBaryCoordinates
 {
 	Eigen::Matrix<Real,mydim+1,1> lambda;
 
-	std::array<Real,ndim> diff = point - points_[0];
+	std::array<Real,ndim> diff{point - points_[0]};
 
 	lambda.tail(mydim).noalias() = M_invJ_ * Eigen::Map<Eigen::Matrix<Real,ndim,1> >(diff.data());
 
@@ -51,7 +53,7 @@ template <UInt NNODES, UInt mydim, UInt ndim>
 void Element<NNODES,mydim,ndim>::computeProperties()
 {
 	for (int i=0; i<mydim; ++i){
-			std::array<Real,ndim> diff(this->points_[i+1] - this->points_[0]);
+			std::array<Real,ndim> diff{this->points_[i+1] - this->points_[0]};
 			this->M_J_.col(i) = Eigen::Map<Eigen::Matrix<Real,ndim,1> >(diff.data());
 	}
 	// NOTE: for small (not bigger than 4x4) matrices eigen directly calculates
@@ -83,7 +85,7 @@ template <UInt NNODES>
 void Element<NNODES,2,3>::computeProperties()
 {
 	for (int i=0; i<2; ++i){
-		  std::array<Real,3> diff(this->points_[i+1] - this->points_[0]);
+		  std::array<Real,3> diff{this->points_[i+1] - this->points_[0]};
 			this->M_J_.col(i) = Eigen::Map<Eigen::Matrix<Real,3,1> >(diff.data());
 	}
 
@@ -100,7 +102,7 @@ void Element<NNODES,2,3>::computeProperties()
 template <UInt NNODES>
 bool Element<NNODES,2,3>::isPointInside(const Point<3>& point) const
 {
-	std::array<Real,3> diff(point - this->points_[0]);
+	std::array<Real,3> diff{point - this->points_[0]};
 
  	Eigen::Matrix<Real,3,3> A;
  	A << this->M_J_, Eigen::Map<Eigen::Matrix<Real,3,1> >(diff.data());

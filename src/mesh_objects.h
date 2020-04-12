@@ -176,7 +176,7 @@ public:
 
 	//! This constructor creates an Element, given its Id and an std array with the Points it will define the Element
 	ElementCore(Id id, const elementPoints& points) :
-					Identifier(id), points_(std::move(points)) {}
+					Identifier(id), points_(points) {}
 
   // Default destructor
   virtual ~ElementCore()=default;
