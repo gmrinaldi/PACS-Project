@@ -1,7 +1,6 @@
 #ifndef __MESH_OBJECTS_HPP__
 #define __MESH_OBJECTS_HPP__
 
-
 #include "fdaPDE.h"
 
 typedef UInt Id;
@@ -17,7 +16,7 @@ constexpr UInt factorial(UInt n) {
 class Identifier{
 public:
 
-	//! An static const Unisgned Integer.
+	//! An static const Unsigned Integer.
     /*! Needed to identify the Not Valid Id. */
 	static constexpr UInt NVAL=std::numeric_limits<UInt>::max();
 
@@ -31,11 +30,11 @@ public:
 	BcId bcId() const {return bcId_;}
 	Id getId() const {return id_;}
 
-
 	protected:
 	Id id_;
 	BcId bcId_;
 };
+
 
 // This class implements a n-dimensional point
 // Doesn't allow creation of points in dimension other than 2 or 3
@@ -43,20 +42,28 @@ template<UInt ndim>
 class Point : public Identifier{
   static_assert(ndim==2 || ndim==3,
     "ERROR: Trying to create a Point object in dimension different than 2D or 3D; see mesh_objects.h");
-
   public:
     using pointCoords=std::array<Real,ndim>;
-
-    Point(): Identifier(NVAL, NVAL) {};
-    Point(pointCoords coord) :
-              Identifier(NVAL, NVAL), coord_(coord) {}
-    Point(Id id, pointCoords coord) :
-              Identifier(id), coord_(coord) {}
-    Point(Id id, BcId bcId, pointCoords coord) :
+    // Default constructor initializing an empty point
+    Point(): Identifier(NVAL, NVAL) {}
+    // Full constructor initializing every member explicitly
+    Point(Id id, BcId bcId, const pointCoords& coord) :
               Identifier(id, bcId), coord_(coord) {}
+    // Additional constructors initializing only some members
+    Point(const pointCoords& coord) :
+              Point(NVAL, NVAL, coord) {}
+    Point(Id id, const pointCoords& coord) :
+              Point(id, NVAL, coord) {}
 
-    Real operator[](UInt i) const {return coord_[i];}
-    Real distance(const Point&) const;
+    Real& operator[](UInt i) {return coord_[i];}
+    const Real& operator[](UInt i) const {return coord_[i];}
+
+    // Member/friend functions returning the distance/squared distance between two points
+    Real dist(const Point&) const;
+    Real dist2(const Point&) const;
+
+    friend Real dist(const Point& lhs, const Point& rhs){return lhs.dist(rhs);};
+    friend Real dist2(const Point& lhs, const Point& rhs){return lhs.dist2(rhs);};
 
     // Overload the "+" ("-") operator to take 2 points of the same dimension and compute
     // the coordinate sum (difference).
@@ -76,10 +83,17 @@ class Point : public Identifier{
       return diff;
     };
 
-
-    friend Real distance(const Point& lhs, const Point& rhs){
-      return lhs.distance(rhs);
-    };
+    //! Overload the << operator to easily print Point info (note: define it in class
+    // to avoid a forward declaration)
+    friend std::ostream& operator<<(std::ostream& os, const Point& p){
+      if(p.unassignedId())
+        os<<"Point: ";
+      else
+        os<<"Point "<<p.getId()<<": ";
+      for (const auto &c : p.coord_)
+        os<<c<<" ";
+      return os<<std::endl;
+    }
 
   private:
     pointCoords coord_;
@@ -160,15 +174,16 @@ public:
   ElementCore() :
           Identifier(NVAL) {}
 
-	//! This constructor creates an Element, given its Id and an std array with the three object Point the will define the Element
+	//! This constructor creates an Element, given its Id and an std array with the Points it will define the Element
 	ElementCore(Id id, const elementPoints& points) :
-					Identifier(id), points_(points) {}
+					Identifier(id), points_(std::move(points)) {}
 
   // Default destructor
   virtual ~ElementCore()=default;
 
 	//! Overloading of the operator [],  taking the Node number and returning a node as Point object.
-	Point<ndim> operator[](UInt i) const {return points_[i];}
+  Point<ndim>& operator[](UInt i) {return points_[i];}
+	const Point<ndim>& operator[](UInt i) const {return points_[i];}
 
 	Real getDetJ() const {return detJ_;}
 	Eigen::Matrix<Real,ndim,mydim>& getM_J() const {return M_J_;}
@@ -195,10 +210,9 @@ public:
   // to avoid a forward declaration)
   friend std::ostream& operator<<(std::ostream& os, const ElementCore& el){
     os<<"Element "<< el.getId() <<": ";
-    for (UInt i=0; i<NNODES; ++i)
-      os<<el[i].getId()<<" ";
-    os<<std::endl;
-    return os;
+    for (const auto &p : el.points_)
+      os<<p.getId()<<" ";
+    return os<<std::endl;
   }
 
 protected:
@@ -229,8 +243,7 @@ public:
 
   //! A member returning the area/volume of the element
   Real getMeasure() const {return std::abs(this->detJ_)/factorial(ndim);}
-  //! Additional members returning the area/volume of the element
-  // Note: both are needed for ease of use
+  //! Additional members returning the area/volume of the element for convenience
   Real getArea() const {return this->getMeasure();}
   Real getVolume() const {return this->getMeasure();}
 
@@ -255,11 +268,10 @@ public:
   Element(Id id, const std::array<Point<3>,NNODES>& points) :
         ElementCore<NNODES,2,3>(id,points) {this->computeProperties();}
 
-
   //! A member returning the area of the element
   // Mind the sqrt!
   Real getMeasure() const {return std::sqrt(this->detJ_)/2;}
-  //! Additional member returning the area added for ease of use
+  //! Additional member returning the area added for convenience
   Real getArea() const {return this->getMeasure();}
 
   //! A member that tests if a Point is located inside an Element.

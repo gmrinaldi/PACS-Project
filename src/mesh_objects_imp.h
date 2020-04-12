@@ -2,15 +2,20 @@
 #ifndef __MESH_OBJECTS_IMP_HPP__
 #define __MESH_OBJECTS_IMP_HPP__
 
-// Member distance funtion for class Point
+// Member squared distance and distance functions for class Point
 template <UInt ndim>
-Real Point<ndim>::distance(const Point<ndim> &other) const {
-	Real dist{0};
-	pointCoords diff{*this - other};
-	for (auto const &i : diff)
-		dist+=i*i;
-	return std::sqrt(dist);
+inline Real Point<ndim>::dist2(const Point<ndim> &other) const {
+	Real dist2{0.};
+	for (UInt i=0; i<ndim; ++i)
+		dist2+=(coord_[i]-other[i])*(coord_[i]-other[i]);
+	return dist2;
 }
+
+template <UInt ndim>
+inline Real Point<ndim>::dist(const Point<ndim> &other) const {
+	return std::sqrt(this->dist2(other));
+}
+
 
 // From here on implementation of Element/ElementCore
 template <UInt NNODES, UInt mydim, UInt ndim>
