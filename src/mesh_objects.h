@@ -23,8 +23,9 @@ public:
 	Identifier(UInt id):id_(id),bcId_(NVAL){}
 	Identifier(UInt id, UInt bcId):id_(id),bcId_(bcId){}
 
-	bool unassignedId()const {return id_==NVAL;}
-	bool unassignedBc()const {return bcId_==NVAL;}
+	bool unassignedId() const {return id_==NVAL;}
+  bool hasValidId() const {return !unassignedId();}
+	bool unassignedBc() const {return bcId_==NVAL;}
 
 	Id id() const {return id_;}
 	BcId bcId() const {return bcId_;}

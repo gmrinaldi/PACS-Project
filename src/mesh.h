@@ -32,7 +32,7 @@ public:
 	MeshHandlerCore(SEXP Rmesh);
 	#endif
 
-  // No copy, no assignmente for this class!
+  // No copy, no assignment for this class!
   // They are not needed and since this class will contain pointers better safe than sorry!
   MeshHandlerCore(const MeshHandlerCore&) = delete;
   MeshHandlerCore &operator=(const MeshHandlerCore&) = delete;
@@ -82,9 +82,9 @@ public:
 		*/
 	meshElement getNeighbors(Id id_element, UInt number) const;
 
-	void printPoints(std::ostream & out);
-	void printElements(std::ostream & out);
-	void printNeighbors(std::ostream & out);
+	void printPoints(std::ostream &);
+	void printElements(std::ostream &);
+	void printNeighbors(std::ostream &);
 
 	//! A normal member returning the element on which a point is located
 		/*!
@@ -92,7 +92,7 @@ public:
 		 * \param point the point we want to locate
 			\return The element that contains the point
 		*/
-	meshElement findLocationNaive(const Point<ndim> point) const;
+	meshElement findLocationNaive(const Point<ndim>&) const;
 
 
 protected:
@@ -125,7 +125,7 @@ public:
     * points for the walking algorithm
     \return The element that contains the point
     */
-   meshElement findLocationWalking(const Point<ndim>& point, const meshElement& starting_element) const;
+   meshElement findLocationWalking(const Point<ndim>&, const meshElement&) const;
 
 };
 
