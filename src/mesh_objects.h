@@ -55,6 +55,8 @@ class Point : public Identifier{
               Point(NVAL, NVAL, coord) {}
     Point(Id id, const pointCoords& coord) :
               Point(id, NVAL, coord) {}
+    // Additional constructor for convenience in dealing with meshes
+    Point(Id id, const Real* const points, const UInt num_points);
 
     Real& operator[](UInt i) {return coord_[i];}
     const Real& operator[](UInt i) const {return coord_[i];}

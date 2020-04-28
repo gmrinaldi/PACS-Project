@@ -24,8 +24,7 @@ MeshHandlerCore<ORDER,mydim,ndim>::~MeshHandlerCore() {}
 template <UInt ORDER, UInt mydim, UInt ndim>
 inline Point<ndim> MeshHandlerCore<ORDER,mydim,ndim>::getPoint(Id id) const
 {
-	return (ndim==2) ? Point<ndim>(id, Identifier::NVAL, {points_[id], points_[id+num_nodes_]}) :
-												Point<ndim>(id, Identifier::NVAL, {points_[id], points_[id+num_nodes_], points_[id+2*num_nodes_]});
+	return Point<ndim>(id, points_, this->num_nodes());
 }
 
 template <UInt ORDER, UInt mydim, UInt ndim>
@@ -76,118 +75,67 @@ Element<how_many_nodes(ORDER,mydim),mydim,ndim> MeshHandler<ORDER,mydim,ndim>::f
 	return current_element;
 }
 
-// template <UInt ORDER>
-// std::vector<UInt> MeshHandler<ORDER,2,3>::find_closest(const std::vector<Point<3> > &inpoints) const{
-// 	// Container for ID and distances of closest points
-// 	std::vector<std::pair<UInt,Real> > closest_to;
-// 	closest_to.reserve(inpoints.size());
-//
-// 	Point<3> curr_node{this->getPoint(0)};
-// 	for(auto const point : inpoints)
-// 		closest_to.emplace_back(0,distance(curr_node,point));
-//
-// 	for(int i=1; i<this->num_nodes(); ++i){
-// 		curr_node=this->getPoint(i);
-// 		for(int j=0; j<inpoints.size(); ++j){
-// 			Real dist=distance(curr_node,inpoints[j]);
-// 			if (dist<closest_to[j].second)
-// 				closest_to[j]=std::make_pair(i,dist);
-// 		}
-// 	}
-//
-// 	std::vector<UInt> closest_ID;
-// 	closest_ID.reserve(inpoints.size());
-// 	for (auto const c : closest_to)
-// 		closest_ID.push_back(c.first);
-//
-// 	return closest_ID;
-// }
-//
-
+// This function finds the closest mesh nodes to a given set of 3D points.
 template <UInt ORDER>
-std::vector<UInt> MeshHandler<ORDER,2,3>::find_closest(const std::vector<Point<3> > &inpoints) const{
+std::vector<UInt> MeshHandler<ORDER,2,3>::find_closest(const std::vector<Point<3> > &points) const{
 
-	std::vector<UInt> closest_ID(inpoints.size());
-	// Note: it is better to use squared distances to avoid sqrt in this context!
-	std::vector<Real> distances;
-	distances.reserve(inpoints.size());
+	std::vector<UInt> closest_ID;
+	closest_ID.reserve(points.size());
 
-	Point<3> curr_node{this->getPoint(0)};
-	for (auto const point : inpoints)
-		distances.push_back(dist2(curr_node,point));
+	//exclude midpoints in order 2
+	const UInt num_actual_nodes = (ORDER==1) ? this->num_nodes() : this->num_nodes() - this->num_edges();
 
-	for(int i=1; i<this->num_nodes(); ++i){
-		curr_node=this->getPoint(i);
-		for(int j=0; j<inpoints.size(); ++j){
-			Real dist=dist2(curr_node,inpoints[j]);
-			if (dist<distances[j]){
-				distances[j]=dist;
-				closest_ID[j]=i;
+	for(auto const &point : points){
+		UInt min_pos;
+		Real min_dist{std::numeric_limits<Real>::max()};
+		for(int i=0; i<num_actual_nodes; ++i){
+			Real distance{point.dist2(this->getPoint(i))};
+			if(distance<min_dist){
+				min_dist=distance;
+				min_pos=i;
 			}
 		}
+		closest_ID.push_back(min_pos);
 	}
-
 	return closest_ID;
 }
 
-
-
+// Naive function for projection onto surface
 template <UInt ORDER>
-std::vector<Point<3> > MeshHandler<ORDER,2,3>::project(const std::vector<Point<3> > &inpoints) const{
+std::vector<Point<3> > MeshHandler<ORDER,2,3>::project(const std::vector<Point<3> > &points) const{
 
-	const UInt num_elements = this->num_elements();
-	// First find the closest node for each point
-	std::vector<UInt> closest_nodes{this->find_closest(inpoints)};
+	std::vector<Point<3> > projections;
+	projections.reserve(points.size());
 
-	// Second build up a patch of elements on which to project
-	std::vector<std::vector<UInt> > patches(inpoints.size());
+	for(auto const &point : points){
+		// First find the closest node for the current point
+		UInt closest_node{this->find_closest(point)};
 
-	// Loop over the elements (first consider only true nodes)
-	for(int i=0; i<3*num_elements; ++i){
-		for(int j=0; j<closest_nodes.size(); ++j){
-			if(closest_nodes[j]==this->elements_[i]){
-				patches[j].push_back(i%num_elements);
-				// Add to the patch the elements that lie opposite the closest node
-				patches[j].push_back(this->neighbors_[i]);
+		// Second build up a patch of elements onto which to project
+		std::vector<UInt> patch;
+		// Conservative estimate to avoid reallocation in most cases
+		patch.reserve(18);
+		for(int i=0; i<3*this->num_elements(); ++i)
+			if(closest_node==this->elements_[i])
+				patch.push_back(i%this->num_elements());
+
+		// Third compute the projections on the elements in the patch and keep the closest
+		Real min_dist{std::numeric_limits<Real>::max()};
+		Point<3> proj_point;
+		for(auto const &i : patch){
+			Element<how_many_nodes(ORDER,2),2,3> current_element{this->getElement(i)};
+			Point<3> curr_proj{current_element.computeProjection(point)};
+			Real distance{point.dist2(curr_proj)};
+			if(distance<min_dist){
+				proj_point = curr_proj;
+				min_dist = distance;
 			}
 		}
+		projections.push_back(proj_point);
 	}
-	// In the 2nd order case midpoints are also considered
-	// Note: in the 1st order case this loop is skipped altogether
-	for(int i=3*num_elements; i<this->num_elements_; ++i){
-		for(int j=0; j<closest_nodes.size(); ++j){
-			if(closest_nodes[j]==this->elements_[i]){
-				patches[j].push_back(i%num_elements);
-				// Add to the patch the neighboring elements
-				patches[j].push_back(this->neighbors_[(i-num_elements)%(3*num_elements)]);
-				patches[j].push_back(this->neighbors_[(i-2*num_elements)%(3*num_elements)]);
-			}
-		}
-	}
-
-	// Third compute the projections on the elements in each patch and keep the closest
-	std::vector<Point<3> > projections(inpoints.size());
-	Element<how_many_nodes(ORDER,2),2,3> current_element;
-	Point<3> proj_point;
-
-	for(int i=0; i<inpoints.size(); ++i){
-		current_element = this->getElement(patches[i][0]);
-		projections[i] = current_element.computeProjection(inpoints[i]);
-		Real dist = distance(projections[i], inpoints[i]);
-
-		for(int j=1; j<patches[i].size(); ++j){
-			current_element = this->getElement(patches[i][j]);
-			proj_point = current_element.computeProjection(inpoints[i]);
-			if(distance(proj_point, inpoints[i])<dist){
-				projections[i] = proj_point;
-				dist = distance(projections[i], inpoints[i]);
-			}
-		}
-	}
-
 	return projections;
-
 }
+
 
 
 template <UInt ORDER, UInt mydim, UInt ndim>

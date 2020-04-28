@@ -15,6 +15,8 @@ constexpr UInt how_many_nodes(UInt order, UInt mydim) {
 
 template <UInt ORDER, UInt mydim, UInt ndim>
 class MeshHandlerCore{
+static_assert(ORDER==1 || ORDER==2,
+  "ERROR: Only first and second order case implemented for now; see mesh.h");
 public:
 	using meshElement=Element<how_many_nodes(ORDER,mydim),mydim,ndim>;
 	//! A constructor.
@@ -31,11 +33,6 @@ public:
 	#ifdef R_VERSION_
 	MeshHandlerCore(SEXP Rmesh);
 	#endif
-
-  // No copy, no assignment for this class!
-  // They are not needed and since this class will contain pointers better safe than sorry!
-  MeshHandlerCore(const MeshHandlerCore&) = delete;
-  MeshHandlerCore &operator=(const MeshHandlerCore&) = delete;
 
 	virtual ~MeshHandlerCore()=0;
 
@@ -117,6 +114,10 @@ public:
   MeshHandler(Real* points, UInt* sides, UInt* elements, UInt* neighbors, UInt num_nodes, UInt num_sides, UInt num_elements) :
       MeshHandlerCore<ORDER,mydim,ndim>(points, sides, elements, neighbors, num_nodes, num_sides, num_elements) {}
 
+  //! Additional members returning the number of edges/faces of the element for convenience
+  UInt num_edges() const {return this->num_sides();}
+  UInt num_faces() const {return this->num_sides();}
+
   //! A normal member returning the element on which a point is located
     /*!
     * This method implements a Visibility Walk Algorithm (further details in: Walking in a triangulation, Devillers et al)
@@ -135,6 +136,9 @@ class MeshHandler<ORDER,2,3> : public MeshHandlerCore<ORDER,2,3>{
 public:
   MeshHandler(Real* points, UInt* sides, UInt* elements, UInt* neighbors, UInt num_nodes, UInt num_sides, UInt num_elements) :
       MeshHandlerCore<ORDER,2,3>(points, sides, elements, neighbors, num_nodes, num_sides, num_elements) {}
+
+  // Additional member returning the number of edges added for convenience
+  UInt num_edges() const {return this->num_sides();}
 
   // This function projects points onto the mesh
   std::vector<Point<3> > project(const std::vector<Point<3> >&) const;

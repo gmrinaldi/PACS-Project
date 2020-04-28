@@ -3,6 +3,15 @@
 #define __MESH_OBJECTS_IMP_HPP__
 
 // Member functions for class Point
+// Constructor specializations
+template <>
+inline Point<2>::Point(Id id, const Real* const points, const UInt num_points) :
+		Point(id, {points[id],points[id+num_points]}) {}
+
+template <>
+inline Point<3>::Point(Id id, const Real* const points, const UInt num_points) :
+		Point(id, {points[id],points[id+num_points],points[id+2*num_points]}) {}
+
 // This function returns the squared distance between "this" point and other
 template <UInt ndim>
 inline Real Point<ndim>::dist2(const Point<ndim> &other) const {
