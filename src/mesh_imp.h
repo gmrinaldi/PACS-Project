@@ -24,7 +24,7 @@ MeshHandlerCore<ORDER,mydim,ndim>::~MeshHandlerCore() {}
 template <UInt ORDER, UInt mydim, UInt ndim>
 inline Point<ndim> MeshHandlerCore<ORDER,mydim,ndim>::getPoint(Id id) const
 {
-	return Point<ndim>(id, points_, this->num_nodes());
+	return Point<ndim>(id, points_, num_nodes_);
 }
 
 template <UInt ORDER, UInt mydim, UInt ndim>
@@ -32,7 +32,7 @@ MeshHandlerCore<ORDER,mydim,ndim>::meshElement MeshHandlerCore<ORDER,mydim,ndim>
 {
 	meshElement el(id);
 	for (int i=0; i<how_many_nodes(ORDER,mydim); ++i)
-		el[i] = this->getPoint(elements_[id + i*this->num_elements()]);
+		el[i] = this->getPoint(elements_[id + i*num_elements_]);
 	return el;
 }
 
@@ -80,7 +80,7 @@ std::vector<UInt> MeshHandler<ORDER,2,3>::find_closest(const std::vector<Point<3
 	closest_ID.reserve(points.size());
 
 	//exclude midpoints in order 2
-	const UInt num_actual_nodes = (ORDER==1) ? this->num_nodes() : this->num_nodes() - this->num_edges();
+	const UInt num_actual_nodes = (ORDER==1) ? this->num_nodes_ : this->num_nodes_ - this->num_sides_;
 
 	for(auto const &point : points){
 		UInt min_pos;
@@ -112,9 +112,9 @@ std::vector<Point<3> > MeshHandler<ORDER,2,3>::project(const std::vector<Point<3
 		std::vector<UInt> patch;
 		// Conservative estimate to avoid reallocation in most cases
 		patch.reserve(18);
-		for(int i=0; i<3*this->num_elements(); ++i)
+		for(int i=0; i<3*this->num_elements_; ++i)
 			if(closest_node==this->elements_[i])
-				patch.push_back(i%this->num_elements());
+				patch.push_back(i%this->num_elements_);
 
 		// Third compute the projections on the elements in the patch and keep the closest
 		Real min_dist{std::numeric_limits<Real>::max()};

@@ -33,20 +33,20 @@ public:
 		/*!
 			\return The number of nodes in the mesh
 		*/
-	UInt num_nodes() const {return num_nodes_/ndim;}
+	UInt num_nodes() const {return num_nodes_;}
 
 	//! A normal member returning an unsigned integer value.
 		/*!
 			\return The number of elements in the mesh
 		*/
-	UInt num_elements() const {return num_elements_/how_many_nodes(ORDER,mydim);}
+	UInt num_elements() const {return num_elements_;}
 
 	//! A normal member returning an unsigned integer value.
 		/*!
 			\return The number of distinct sides (edges for mydim=2,
 			faces for mydim=3) in the mesh
 		*/
-	UInt num_sides() const {return num_sides_/mydim;}
+	UInt num_sides() const {return num_sides_;}
 
 	//! A normal member returning a n-dimensional Point
 		/*!
