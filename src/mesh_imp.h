@@ -28,19 +28,16 @@ inline Point<ndim> MeshHandlerCore<ORDER,mydim,ndim>::getPoint(Id id) const
 }
 
 template <UInt ORDER, UInt mydim, UInt ndim>
-Element<how_many_nodes(ORDER,mydim),mydim,ndim> MeshHandlerCore<ORDER,mydim,ndim>::getElement(Id id) const
+MeshHandlerCore<ORDER,mydim,ndim>::meshElement MeshHandlerCore<ORDER,mydim,ndim>::getElement(Id id) const
 {
-	std::array<Point<ndim>, how_many_nodes(ORDER,mydim)> element_points;
+	meshElement el(id);
 	for (int i=0; i<how_many_nodes(ORDER,mydim); ++i)
-	{
-		Id curr{elements_[id + i*num_elements_]};
-		element_points[i]= this->getPoint(curr);
-	}
-	return meshElement(id, element_points);
+		el[i] = this->getPoint(elements_[id + i*this->num_elements()]);
+	return el;
 }
 
 template <UInt ORDER, UInt mydim, UInt ndim>
-Element<how_many_nodes(ORDER,mydim),mydim,ndim> MeshHandlerCore<ORDER,mydim,ndim>::getNeighbors(Id id_element, UInt number) const
+MeshHandlerCore<ORDER,mydim,ndim>::meshElement MeshHandlerCore<ORDER,mydim,ndim>::getNeighbors(Id id_element, UInt number) const
 {
 	Id id_neighbor{neighbors_[id_element + number * num_elements_]};
 	//return empty element if "neighbor" not present (out of boundary!)
@@ -48,7 +45,7 @@ Element<how_many_nodes(ORDER,mydim),mydim,ndim> MeshHandlerCore<ORDER,mydim,ndim
 }
 
 template <UInt ORDER, UInt mydim, UInt ndim>
-Element<how_many_nodes(ORDER,mydim),mydim,ndim> MeshHandlerCore<ORDER,mydim,ndim>::findLocationNaive(const Point<ndim>& point) const
+MeshHandlerCore<ORDER,mydim,ndim>::meshElement MeshHandlerCore<ORDER,mydim,ndim>::findLocationNaive(const Point<ndim>& point) const
 {
 	for(Id id=0; id < num_elements_; ++id){
 		meshElement current_element{this->getElement(id)};
@@ -61,7 +58,7 @@ Element<how_many_nodes(ORDER,mydim),mydim,ndim> MeshHandlerCore<ORDER,mydim,ndim
 // Visibility walk algorithm which uses barycentric coordinate [Sundareswara et al]
 //Starting triangles usually n^(1/3) points
 template <UInt ORDER, UInt mydim, UInt ndim>
-Element<how_many_nodes(ORDER,mydim),mydim,ndim> MeshHandler<ORDER,mydim,ndim>::findLocationWalking(const Point<ndim>& point, const Element<how_many_nodes(ORDER,mydim),mydim,ndim>& starting_element) const
+MeshHandlerCore<ORDER,mydim,ndim>::meshElement MeshHandler<ORDER,mydim,ndim>::findLocationWalking(const Point<ndim>& point, const Element<how_many_nodes(ORDER,mydim),mydim,ndim>& starting_element) const
 {
 	static_assert(ndim==mydim,
 								"ERROR: Walking algorithm does not work for manifold data! see mesh_imp.h");

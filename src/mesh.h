@@ -5,19 +5,12 @@
 #include "mesh_objects.h"
 
 
-//Simple function to convert from order to NNODES at compile time
-//Needed to uniform implementation of meshes
-//Note: factorial function is defined in mesh_objects.h
-constexpr UInt how_many_nodes(UInt order, UInt mydim) {
-    return factorial(order+mydim)/(factorial(order)*factorial(mydim));
-}
-
-
 template <UInt ORDER, UInt mydim, UInt ndim>
 class MeshHandlerCore{
 static_assert(ORDER==1 || ORDER==2,
   "ERROR: Only first and second order case implemented for now; see mesh.h");
 public:
+  // Note: how_many_nodes function is defined in mesh_objects.h
 	using meshElement=Element<how_many_nodes(ORDER,mydim),mydim,ndim>;
 	//! A constructor.
 		/*!

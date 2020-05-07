@@ -3,28 +3,24 @@
 
 #include<iostream>
 
-//! Implementazione EF mydim=2, ndim=2
+// Template auxiliary function declaration
+template<UInt NBASES, UInt mydim>
+Eigen::Matrix<Real, NBASES, 1> reference_eval_point(const Point<mydim> &node);
 
+template<UInt NBASES, UInt mydim>
+Eigen::Matrix<Real, NBASES,mydim> reference_eval_der_point(const Point<mydim> &node);
 
-template <class Integrator, UInt ORDER>
-FiniteElement<Integrator, ORDER,2,2>::FiniteElement()
+//! FE implementation
+template <class Integrator, UInt ORDER, UInt mydim, UInt ndim>
+FiniteElement<Integrator, ORDER, mydim, ndim>::FiniteElement()
 {
-	//Set the properties of the reference element
-	std::vector<Point> reference_nodes;
-	reference_nodes.push_back(Point(0,0));
-	reference_nodes.push_back(Point(1,0));
-	reference_nodes.push_back(Point(0,1));
-
-	reference_ = Element<3*ORDER,2,2> (Id(0), reference_nodes);
-
 	//How it will be used, it does not depend on J^-1 -> set one time
 	setPhiMaster();
 	setPhiDerMaster();
 }
 
-
-template <class Integrator, UInt ORDER>
-void FiniteElement<Integrator, ORDER,2,2>::updateElement(const Element<3*ORDER,2,2> &t)
+template <class Integrator, UInt ORDER, UInt mydim, UInt ndim>
+void FiniteElement<Integrator, ORDER, mydim, ndim>::updateElement(const Element<NBASES,mydim,ndim> &t)
 {
 	t_ = t;
 
@@ -33,80 +29,46 @@ void FiniteElement<Integrator, ORDER,2,2>::updateElement(const Element<3*ORDER,2
 
 }
 
-template <class Integrator, UInt ORDER>
-void FiniteElement<Integrator, ORDER,2,2>::setPhiMaster()
+template <class Integrator, UInt ORDER, UInt mydim, UInt ndim>
+void FiniteElement<Integrator, ORDER, mydim, ndim>::setPhiMaster()
 {
-	Eigen::Matrix<Real,3*ORDER,1> coefficients;
-	for (auto i=0; i < 3*ORDER; i++)
-	{
-		coefficients = MatrixXr::Zero(3*ORDER,1);
-		coefficients(i) = 1;
-		for (auto iq=0; iq < Integrator::NNODES; iq++)
-		{
-			Real phi = evaluate_point<3*ORDER,2,2>(reference_,Integrator::NODES[iq],coefficients);
-			phiMapMaster_(i,iq) = phi;
-		}
-	}
+	for(UInt iq=0; iq<Integrator::NNODES; ++iq)
+		phiMapMaster_.col(iq)=reference_eval_point<NBASES,mydim>(Integrator::NODES[iq]);
 }
 
-template <class Integrator, UInt ORDER>
-void FiniteElement<Integrator, ORDER,2,2>::setPhiDerMaster()
+template <class Integrator, UInt ORDER, UInt mydim, UInt ndim>
+void FiniteElement<Integrator, ORDER, mydim, ndim>::setPhiDerMaster()
 {
-	Eigen::Matrix<Real,3*ORDER,1> coefficients;
-	Eigen::Matrix<Real,2,1> der;
-	Eigen::Matrix<Real,2,1> der_transf;
-
-	for (auto i=0; i < 3*ORDER; i++)
-	{
-		coefficients = MatrixXr::Zero(3*ORDER,1);
-		coefficients(i) = 1;
-		for (auto iq=0; iq < Integrator::NNODES; iq++)
-		{
-			der = evaluate_der_point<3*ORDER,2,2>(reference_,Integrator::NODES[iq],coefficients);
-			// we need J^(-1) nabla( phi)
-			//der_transf = t_.getM_invJ()*der;
-			phiDerMapMaster_(i,iq*2) = der[0];
-			phiDerMapMaster_(i,iq*2+1) = der[1];
-		}
-	}
+	// .template is needed! See Eigen documentation regarding
+	// the template and typename keywords in C++
+	for(UInt iq=0; iq<Integrator::NNODES; ++iq)
+		phiDerMapMaster_.template block<NBASES, mydim>(0, mydim*iq)=reference_eval_der_point<NBASES,mydim>(Integrator::NODES[iq]);
 }
 
-template <class Integrator, UInt ORDER>
-Real FiniteElement<Integrator, ORDER,2,2>::phiMaster(UInt i, UInt iq) const
+template <class Integrator, UInt ORDER, UInt mydim, UInt ndim>
+Real FiniteElement<Integrator, ORDER, mydim, ndim>::phiMaster(UInt i, UInt iq) const
 {
 	return phiMapMaster_(i, iq);
 }
 
-template <class Integrator, UInt ORDER>
-Real FiniteElement<Integrator, ORDER,2,2>::phiDerMaster(UInt i, UInt ic, UInt iq) const
+template <class Integrator, UInt ORDER, UInt mydim, UInt ndim>
+Real FiniteElement<Integrator, ORDER, mydim, ndim>::phiDerMaster(UInt i, UInt ic, UInt iq) const
 {
-	return phiDerMapMaster_(i, iq*2 + ic);
+	return phiDerMapMaster_(i, iq*mydim + ic);
 }
 
-template <class Integrator, UInt ORDER>
-Real FiniteElement<Integrator, ORDER,2,2>::invTrJPhiDerMaster(UInt i, UInt ic, UInt iq) const
+template <class Integrator, UInt ORDER, UInt mydim, UInt ndim>
+Real FiniteElement<Integrator, ORDER, mydim, ndim>::invTrJPhiDerMaster(UInt i, UInt ic, UInt iq) const
 {
-	return invTrJPhiDerMapMaster_(i, iq*2 + ic);
+	return invTrJPhiDerMapMaster_(i, iq*mydim + ic);
 }
 
-template <class Integrator, UInt ORDER>
-void FiniteElement<Integrator, ORDER,2,2>::setInvTrJPhiDerMaster()
+template <class Integrator, UInt ORDER, UInt mydim, UInt ndim>
+void FiniteElement<Integrator, ORDER, mydim, ndim>::setInvTrJPhiDerMaster()
 {
-	Eigen::Matrix<Real,2,1> der;
-	Eigen::Matrix<Real,2,1> der_transf;
-
-	for (auto i=0; i < 3*ORDER; i++)
-	{
-		for (auto iq=0; iq < Integrator::NNODES; iq++)
-		{
-			der[0] = phiDerMaster(i, 0, iq);
-			der[1] = phiDerMaster(i, 1, iq);
-			// we need J^(-T) nabla( phi)
-			der_transf = t_.getM_invJ().transpose()*der;
-			invTrJPhiDerMapMaster_(i,iq*2) = der_transf[0];
-			invTrJPhiDerMapMaster_(i,iq*2+1) = der_transf[1];
-		}
-	}
+	// we need J^(-T) nabla( phi)
+	for (auto iq=0; iq < Integrator::NNODES; ++iq)
+			invTrJPhiDerMapMaster_.template block<NBASES,mydim>(0,mydim*iq).noalias() = phiDerMapMaster_.template block<NBASES,mydim>(0,mydim*iq)*t_.getM_invJ();
 }
 
 //! Implementazione EF mydim=2, ndim=3
@@ -115,14 +77,6 @@ void FiniteElement<Integrator, ORDER,2,2>::setInvTrJPhiDerMaster()
 template <class Integrator, UInt ORDER>
 FiniteElement<Integrator, ORDER,2,3>::FiniteElement()
 {
-	//Set the properties of the reference element
-	std::vector<Point> reference_nodes;
-	reference_nodes.push_back(Point(0,0));
-	reference_nodes.push_back(Point(1,0));
-	reference_nodes.push_back(Point(0,1));
-
-	reference_ = Element<3*ORDER,2,2> (Id(0), reference_nodes);
-
 	//How it will be used, it does not depend on J^-1 -> set one time
 	setPhiMaster();
 	setPhiDerMaster();
@@ -130,7 +84,7 @@ FiniteElement<Integrator, ORDER,2,3>::FiniteElement()
 
 
 template <class Integrator, UInt ORDER>
-void FiniteElement<Integrator, ORDER,2,3>::updateElement(const Element<3*ORDER,2,3> &t)
+void FiniteElement<Integrator, ORDER,2,3>::updateElement(const Element<NBASES,2,3> &t)
 {
 	t_ = t;
 
@@ -142,39 +96,15 @@ void FiniteElement<Integrator, ORDER,2,3>::updateElement(const Element<3*ORDER,2
 template <class Integrator, UInt ORDER>
 void FiniteElement<Integrator, ORDER,2,3>::setPhiMaster()
 {
-	Eigen::Matrix<Real,3*ORDER,1> coefficients;
-	for (auto i=0; i < 3*ORDER; i++)
-	{
-		coefficients = MatrixXr::Zero(3*ORDER,1);
-		coefficients(i) = 1;
-		for (auto iq=0; iq < Integrator::NNODES; iq++)
-		{
-			Real phi = evaluate_point<3*ORDER>(reference_,Integrator::NODES[iq],coefficients);
-			phiMapMaster_(i,iq) = phi;
-		}
-	}
+	for(UInt iq=0; iq<Integrator::NNODES; ++iq)
+		phiMapMaster_.col(iq)=reference_eval_point<NBASES,2>(Integrator::NODES[iq]);
 }
 
 template <class Integrator, UInt ORDER>
 void FiniteElement<Integrator, ORDER,2,3>::setPhiDerMaster()
 {
-	Eigen::Matrix<Real,3*ORDER,1> coefficients;
-	Eigen::Matrix<Real,2,1> der;
-	Eigen::Matrix<Real,2,1> der_transf;
-
-	for (auto i=0; i < 3*ORDER; i++)
-	{
-		coefficients = MatrixXr::Zero(3*ORDER,1);
-		coefficients(i) = 1;
-		for (auto iq=0; iq < Integrator::NNODES; iq++)
-		{
-			der = evaluate_der_point<3*ORDER,2,2>(reference_,Integrator::NODES[iq],coefficients);
-			// we need J^(-1) nabla( phi)
-			//der_transf = t_.getM_invJ()*der;
-			phiDerMapMaster_(i,iq*2) = der[0];
-			phiDerMapMaster_(i,iq*2+1) = der[1];
-		}
-	}
+	for(UInt iq=0; iq<Integrator::NNODES; ++iq)
+		phiDerMapMaster_.template block<NBASES, 2>(0, 2*iq)=reference_eval_der_point<NBASES,2>(Integrator::NODES[iq]);
 }
 
 template <class Integrator, UInt ORDER>
@@ -189,144 +119,83 @@ Real FiniteElement<Integrator, ORDER,2,3>::phiDerMaster(UInt i, UInt ic, UInt iq
 	return phiDerMapMaster_(i, iq*2 + ic);
 }
 
-/*template <class Integrator, UInt ORDER>
-Real FiniteElement<Integrator, ORDER,2,2>::invTrJPhiDerMaster(UInt i, UInt ic, UInt iq) const
-{
-	return invTrJPhiDerMapMaster_(i, iq*2 + ic);
+
+// Templates for auxiliary functions
+// This function covers all order 1 cases
+template<UInt NBASES, UInt mydim>
+Eigen::Matrix<Real, NBASES, 1> reference_eval_point(const Point<mydim> &node){
+	Eigen::Matrix<Real, NBASES, 1> phi;
+	phi.template tail<mydim>()=Eigen::Map<const Eigen::Matrix<Real,mydim,1> >(&node[0]);
+	phi(0) = 1 - phi.template tail<mydim>().sum();
+	return phi;
 }
 
-template <class Integrator, UInt ORDER>
-void FiniteElement<Integrator, ORDER,2,2>::setInvTrJPhiDerMaster()
-{
-	Eigen::Matrix<Real,2,1> der;
-	Eigen::Matrix<Real,2,1> der_transf;
-
-	for (auto i=0; i < 3*ORDER; i++)
-	{
-		for (auto iq=0; iq < Integrator::NNODES; iq++)
-		{
-			der[0] = phiDerMaster(i, 0, iq);
-			der[1] = phiDerMaster(i, 1, iq);
-			// we need J^(-T) nabla( phi)
-			der_transf = t_.getM_invJ().transpose()*der;
-			invTrJPhiDerMapMaster_(i,iq*2) = der_transf[0];
-			invTrJPhiDerMapMaster_(i,iq*2+1) = der_transf[1];
-		}
-	}
-}*/
-
-
-//! Implementazione EF mydim=3, ndim=3
-
-
-template <class Integrator, UInt ORDER>
-FiniteElement<Integrator, ORDER,3,3>::FiniteElement()
-{
-	//Set the properties of the reference element
-	std::vector<Point> reference_nodes;
-	reference_nodes.push_back(Point(0,0,0));
-	reference_nodes.push_back(Point(1,0,0));
-	reference_nodes.push_back(Point(0,1,0));
-	reference_nodes.push_back(Point(0,0,1));
-
-	reference_ = Element<6*ORDER-2,3,3> (Id(0), reference_nodes);
-
-	//How it will be used, it does not depend on J^-1 -> set one time
-	setPhiMaster();
-	setPhiDerMaster();
+// Full specialization for order 2 in 2D and 2.5D (same reference element!)
+template<>
+Eigen::Matrix<Real, 6, 1> reference_eval_point<6,2>(const Point<2> &node){
+	Eigen::Matrix<Real, 6, 1> phi;
+	phi << (1-node[0]-node[1]) * (1-2*node[0]-2*node[1]),
+										 node[0] * (2*node[0]-1),
+										 node[1] * (2*node[1]-1),
+									 4*node[0] * node[1],
+								   4*node[1] * (1-node[0]-node[1]),
+									 4*node[0] * (1-node[0]-node[1]);
+	return phi;
 }
 
-
-template <class Integrator, UInt ORDER>
-void FiniteElement<Integrator, ORDER,3,3>::updateElement(const Element<6*ORDER-2,3,3> &t)
-{
-	t_ = t;
-
-	//it does depend on J^-1 -> set for each element
-	setInvTrJPhiDerMaster();
-
+// Full specialization for order 2 in 3D
+template<>
+Eigen::Matrix<Real, 10, 1> reference_eval_point<10,3>(const Point<3> &node){
+	Eigen::Matrix<Real, 10, 1> phi;
+	phi << (1-node[0]-node[1]-node[2]) * (1-2*node[0]-2*node[1]-2*node[2]),
+														 node[0] * (2*node[0]-1),
+														 node[1] * (2*node[1]-1),
+														 node[2] * (2*node[2]-1),
+													 4*node[0] * (1-node[0]-node[1]-node[2]),
+													 4*node[1] * (1-node[0]-node[1]-node[2]),
+													 4*node[2] * (1-node[0]-node[1]-node[2]),
+													 4*node[0] * node[1],
+													 4*node[1] * node[2],
+													 4*node[2] * node[0];
+	return phi;
 }
 
-template <class Integrator, UInt ORDER>
-void FiniteElement<Integrator, ORDER,3,3>::setPhiMaster()
-{
-	Eigen::Matrix<Real,6*ORDER-2,1> coefficients;
-	for (auto i=0; i < 6*ORDER-2; i++)
-	{
-		coefficients = MatrixXr::Zero(6*ORDER-2,1);
-		coefficients(i) = 1;
-		for (auto iq=0; iq < Integrator::NNODES; iq++)
-		{
-			Real phi = evaluate_point<6*ORDER-2,3,3>(reference_,Integrator::NODES[iq],coefficients);
-			phiMapMaster_(i,iq) = phi;
-		}
-	}
+// This function covers all order 1 cases
+template<UInt NBASES, UInt mydim>
+Eigen::Matrix<Real, NBASES,mydim> reference_eval_der_point(const Point<mydim> &node){
+	Eigen::Matrix<Real,NBASES,mydim> B1;
+	B1.row(0).setConstant(-1);
+	B1.bottomRows(mydim).setIdentity();
+	return B1;
 }
 
-template <class Integrator, UInt ORDER>
-void FiniteElement<Integrator, ORDER,3,3>::setPhiDerMaster()
-{
-	Eigen::Matrix<Real,6*ORDER-2,1> coefficients;
-	Eigen::Matrix<Real,3,1> der;
-	//Eigen::Matrix<Real,3,1> der_transf;
-
-	for (auto i=0; i < 6*ORDER-2; i++)
-	{
-		coefficients = MatrixXr::Zero(6*ORDER-2,1);
-		coefficients(i) = 1;
-		for (auto iq=0; iq < Integrator::NNODES; iq++)
-		{
-			der = evaluate_der_point<6*ORDER-2,3,3>(reference_,Integrator::NODES[iq],coefficients);
-			// we need J^(-1) nabla( phi)
-			//der_transf = t_.getM_invJ()*der;
-			phiDerMapMaster_(i,iq*3) = der[0];
-			phiDerMapMaster_(i,iq*3+1) = der[1];
-			phiDerMapMaster_(i,iq*3+2) = der[2];
-		}
-	}
+// Full specialization for order 2 in 2D and 2.5D
+template<>
+Eigen::Matrix<Real, 6,2> reference_eval_der_point<6,2>(const Point<2> &node){
+	Eigen::Matrix<Real,6,2> B2;
+	B2 << 1-4*(1-node[0]-node[1]), 1-4*(1-node[0]-node[1]),
+										4*node[0]-1, 											 0,
+															0, 						 4*node[1]-1,
+											4*node[1],  						 4*node[0],
+										 -4*node[1], 4*(1-node[0]-2*node[1]),
+				4*(1-2*node[0]-node[1]), 						  -4*node[0];
+	return B2;
 }
 
-
-template <class Integrator, UInt ORDER>
-void FiniteElement<Integrator, ORDER,3,3>::setInvTrJPhiDerMaster()
-{
-	Eigen::Matrix<Real,3,1> der;
-	Eigen::Matrix<Real,3,1> der_transf;
-
-	for (auto i=0; i < 6*ORDER-2; i++)
-	{
-		for (auto iq=0; iq < Integrator::NNODES; iq++)
-		{
-			der[0] = phiDerMaster(i, 0, iq);
-			der[1] = phiDerMaster(i, 1, iq);
-			der[2] = phiDerMaster(i, 2, iq);
-			// we need J^(-T) nabla( phi)
-			der_transf = t_.getM_invJ().transpose()*der;
-
-			invTrJPhiDerMapMaster_(i,iq*3) = der_transf[0];
-			invTrJPhiDerMapMaster_(i,iq*3+1) = der_transf[1];
-			invTrJPhiDerMapMaster_(i,iq*3+2) = der_transf[2];
-		}
-	}
-}
-
-
-template <class Integrator, UInt ORDER>
-Real FiniteElement<Integrator, ORDER,3,3>::phiMaster(UInt i, UInt iq) const
-{
-	return phiMapMaster_(i, iq);
-}
-
-template <class Integrator, UInt ORDER>
-Real FiniteElement<Integrator, ORDER,3,3>::phiDerMaster(UInt i, UInt ic, UInt iq) const
-{
-	return phiDerMapMaster_(i, iq*3 + ic);
-}
-
-template <class Integrator, UInt ORDER>
-Real FiniteElement<Integrator, ORDER,3,3>::invTrJPhiDerMaster(UInt i, UInt ic, UInt iq) const
-{
-	return invTrJPhiDerMapMaster_(i, iq*3 + ic);
+// Full specialization for order 2 in 3D
+template<>
+Eigen::Matrix<Real, 10,3> reference_eval_der_point<10,3>(const Point<3> &node){
+	Eigen::Matrix<Real,10,3> B2;
+	B2 << 1-4*(1-node[0]-node[1]-node[2]), 	1-4*(1-node[0]-node[1]-node[2]), 1-4*(1-node[0]-node[1]-node[2]),
+														4*node[0]-1, 		 			 						          0,															 0,
+																			0, 										  4*node[1]-1, 															 0,
+				4*(1-2*node[0]-node[1]-node[2]),  						  			 -4*node[0], 										  -4*node[0],
+														 -4*node[1],  4*(1-node[0]-2*node[1]-node[2]), 											-4*node[1],
+														 -4*node[2], 											 -4*node[2], 4*(1-node[0]-node[1]-2*node[2]),
+															4*node[1],												4*node[0], 															 0,
+																			0, 												4*node[2], 											 4*node[1],
+															4*node[2],																0,											 4*node[0];
+	return B2;
 }
 
 

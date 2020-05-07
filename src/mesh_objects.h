@@ -12,6 +12,12 @@ constexpr UInt factorial(UInt n) {
     return n ? (n * factorial(n - 1)) : 1;
 }
 
+//Simple function to convert from order to NNODES at compile time
+//Computes how many nodes in an element of given order and dimension
+constexpr UInt how_many_nodes(UInt order, UInt mydim) {
+    return factorial(order+mydim)/(factorial(order)*factorial(mydim));
+}
+
 //!  This class gives some common methods to all mesh objects.
 class Identifier{
 public:
@@ -20,8 +26,9 @@ public:
     /*! Needed to identify the Not Valid Id. */
 	static constexpr UInt NVAL=std::numeric_limits<UInt>::max();
 
-	Identifier(UInt id):id_(id),bcId_(NVAL){}
-	Identifier(UInt id, UInt bcId):id_(id),bcId_(bcId){}
+  constexpr Identifier(){}
+	constexpr Identifier(UInt id):id_(id){}
+	constexpr Identifier(UInt id, UInt bcId):id_(id),bcId_(bcId){}
 
 	bool unassignedId() const {return id_==NVAL;}
   bool hasValidId() const {return !unassignedId();}
@@ -32,8 +39,8 @@ public:
 	Id getId() const {return id_;}
 
 	protected:
-	Id id_;
-	BcId bcId_;
+	Id id_=NVAL;
+	BcId bcId_=NVAL;
 };
 
 
@@ -45,16 +52,24 @@ class Point : public Identifier{
     "ERROR: Trying to create a Point object in dimension different than 2D or 3D; see mesh_objects.h");
   public:
     using pointCoords=std::array<Real,ndim>;
-    // Default constructor initializing an empty point
-    Point(): Identifier(NVAL, NVAL) {}
+    using pointEigen=Eigen::Matrix<Real,ndim,1>;
+    // Default constructor initializing the origin
+    constexpr Point()=default;
     // Full constructor initializing every member explicitly
-    Point(Id id, BcId bcId, const pointCoords& coord) :
+    constexpr Point(Id id, BcId bcId, const pointCoords& coord) :
               Identifier(id, bcId), coord_(coord) {}
     // Additional constructors initializing only some members
-    Point(const pointCoords& coord) :
-              Point(NVAL, NVAL, coord) {}
-    Point(Id id, const pointCoords& coord) :
-              Point(id, NVAL, coord) {}
+    constexpr Point(const pointCoords& coord) :
+              coord_(coord) {}
+    constexpr Point(Id id, const pointCoords& coord) :
+              Identifier(id), coord_(coord) {}
+    // Additional constructor (needed for disambiguation when constructing from
+    // bracketed initializer lists)
+    constexpr Point(const Real(&coord)[ndim]);
+
+    // Additional constructor allowing conversion from eigen objects
+    Point(const pointEigen &coord);
+
     // Additional constructor for convenience in dealing with meshes
     Point(Id id, const Real* const points, const UInt num_points);
 
@@ -70,16 +85,14 @@ class Point : public Identifier{
 
     // Overload the "+" ("-") operator to take 2 points of the same dimension and compute
     // the coordinate sum (difference).
-    // Note: they return an array for convenience, but since an array is convertible to Point
-    // something like this is fine Point<ndim> a, b; // Point<ndim> c=a-b;
-    friend pointCoords operator +(const Point& lhs, const Point& rhs){
-      pointCoords diff{lhs.coord_};
+    friend Point operator +(const Point& lhs, const Point& rhs){
+      pointCoords sum{lhs.coord_};
       for (int i=0; i<ndim; ++i)
-          diff[i]+=rhs[i];
-      return diff;
+          sum[i]+=rhs[i];
+      return sum;
     };
 
-    friend pointCoords operator -(const Point& lhs, const Point& rhs){
+    friend Point operator -(const Point& lhs, const Point& rhs){
       pointCoords diff{lhs.coord_};
       for (int i=0; i<ndim; ++i)
           diff[i]-=rhs[i];
@@ -171,27 +184,41 @@ public:
 	static constexpr UInt numSides=mydim*(mydim+1)/2;
 	static constexpr UInt myDim=mydim;
 
-  using elementPoints=std::array<Point<ndim>,NNODES>;
+  using elementPoints = std::array<Point<ndim>,NNODES>;
+  using iterator = typename elementPoints::iterator;
+  using const_iterator = typename elementPoints::const_iterator;
 
   //! This constructor creates an "empty" Element, with an Id Not Valid
   ElementCore() :
           Identifier(NVAL) {}
 
-	//! This constructor creates an Element, given its Id and an std array with the Points it will define the Element
+  //! This constructor creates an "empty" Element, with a given Id
+  ElementCore(Id id) :
+          Identifier(id) {}
+
+	//! This constructor creates an Element, given its Id and an std array with the Points
 	ElementCore(Id id, const elementPoints& points) :
 					Identifier(id), points_(points) {}
 
   // Default destructor
   virtual ~ElementCore()=default;
 
-	//! Overloading of the operator [],  taking the Node number and returning a node as Point object.
+	//! Overloading of the operator [],  taking the Node number and returning a node as a reference to a Point object.
   Point<ndim>& operator[](UInt i) {return points_[i];}
 	const Point<ndim>& operator[](UInt i) const {return points_[i];}
 
+  //! Define begin and end iterators (this also gives "ranged for" for free)
+  iterator begin() {return points_.begin();}
+  iterator end() {return points_.end();}
+
+  //! Define const begin and end iterators
+  const_iterator begin() const {return points_.begin();}
+  const_iterator end() const {return points_.end();}
+
 	Real getDetJ() const {return detJ_;}
-	Eigen::Matrix<Real,ndim,mydim>& getM_J() const {return M_J_;}
-	Eigen::Matrix<Real,mydim,ndim>& getM_invJ() const {return M_invJ_;} //in 2.5D this is actually the pseudoinverse!
-	Eigen::Matrix<Real,mydim,mydim>& getMetric() const {return metric_;}
+	const Eigen::Matrix<Real,ndim,mydim>& getM_J() const {return M_J_;}
+	const Eigen::Matrix<Real,mydim,ndim>& getM_invJ() const {return M_invJ_;} //in 2.5D this is actually the pseudoinverse!
+	const Eigen::Matrix<Real,mydim,mydim>& getMetric() const {return metric_;}
 
   //! A member that computes the barycentric coordinates.
 	Eigen::Matrix<Real,mydim+1,1> getBaryCoordinates(const Point<ndim>& point) const;
@@ -213,7 +240,7 @@ public:
   // to avoid a forward declaration)
   friend std::ostream& operator<<(std::ostream& os, const ElementCore& el){
     os<<"Element "<< el.getId() <<": ";
-    for (const auto &p : el.points_)
+    for (const auto &p : el)
       os<<p.getId()<<" ";
     return os<<std::endl;
   }
@@ -235,14 +262,14 @@ protected:
 template <UInt NNODES, UInt mydim, UInt ndim>
 class Element : public ElementCore<NNODES,mydim,ndim> {
 public:
+  using elementPoints = typename ElementCore<NNODES,mydim,ndim>::elementPoints;
   //! This constructor creates an "empty" Element, with an Id Not Valid
   Element() :
         ElementCore<NNODES,mydim,ndim>() {}
 
   //! This constructor creates an Element, given its Id and an std array with the three object Point the will define the Element
-  Element(Id id, const std::array<Point<ndim>,NNODES>& points) :
+  Element(Id id, const elementPoints& points) :
         ElementCore<NNODES,mydim,ndim>(id,points) {this->computeProperties();}
-
 
   //! A member returning the area/volume of the element
   Real getMeasure() const {return std::abs(this->detJ_)/factorial(ndim);}
@@ -263,12 +290,13 @@ private:
 template <UInt NNODES>
 class Element<NNODES, 2,3> : public ElementCore<NNODES,2,3> {
 public:
+  using elementPoints = typename ElementCore<NNODES,2,3>::elementPoints;
   //! This constructor creates an "empty" Element, with an Id Not Valid
   Element() :
         ElementCore<NNODES,2,3>() {}
 
   //! This constructor creates an Element, given its Id and an std array with the three object Point the will define the Element
-  Element(Id id, const std::array<Point<3>,NNODES>& points) :
+  Element(Id id, const elementPoints& points) :
         ElementCore<NNODES,2,3>(id,points) {this->computeProperties();}
 
   //! A member returning the area of the element

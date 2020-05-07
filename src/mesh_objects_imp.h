@@ -6,13 +6,29 @@
 // Constructor specializations
 template <>
 inline Point<2>::Point(Id id, const Real* const points, const UInt num_points) :
-		Point(id, {points[id],points[id+num_points]}) {}
+		Point(id, {points[id], points[id+num_points]}) {}
 
 template <>
 inline Point<3>::Point(Id id, const Real* const points, const UInt num_points) :
-		Point(id, {points[id],points[id+num_points],points[id+2*num_points]}) {}
+		Point(id, {points[id], points[id+num_points], points[id+2*num_points]}) {}
 
-// This function returns the squared distance between "this" point and other
+template <>
+constexpr Point<2>::Point(const Real(&coord)[2]) :
+		coord_({coord[0], coord[1]}) {}
+
+template <>
+constexpr Point<3>::Point(const Real(&coord)[3]) :
+		coord_({coord[0], coord[1], coord[2]}) {}
+
+template <>
+inline Point<2>::Point(const pointEigen &coord) :
+		coord_({coord[0], coord[1]}) {}
+
+template <>
+inline Point<3>::Point(const pointEigen &coord) :
+		coord_({coord[0], coord[1], coord[2]}) {}
+
+// This function returns the squared euclidean distance between "this" point and other
 template <UInt ndim>
 inline Real Point<ndim>::dist2(const Point<ndim> &other) const {
 	Real dist2{0.};
@@ -21,7 +37,7 @@ inline Real Point<ndim>::dist2(const Point<ndim> &other) const {
 	return dist2;
 }
 
-// This function returns the distance between "this" point and other
+// This function returns the euclidean distance between "this" point and other
 template <UInt ndim>
 inline Real Point<ndim>::dist(const Point<ndim> &other) const {
 	return std::sqrt(this->dist2(other));
@@ -34,11 +50,13 @@ Eigen::Matrix<Real,mydim+1,1> ElementCore<NNODES,mydim,ndim>::getBaryCoordinates
 {
 	Eigen::Matrix<Real,mydim+1,1> lambda;
 
-	std::array<Real,ndim> diff{point - points_[0]};
+	Point<ndim> diff{point - points_[0]};
 
-	lambda.tail(mydim).noalias() = M_invJ_ * Eigen::Map<Eigen::Matrix<Real,ndim,1> >(diff.data());
+	// .template is needed! See Eigen documentation regarding
+	// the template and typename keywords in C++
+	lambda.template tail<mydim>().noalias() = M_invJ_ * Eigen::Map<const Eigen::Matrix<Real,ndim,1> >(&diff[0]);
 
-  lambda(0) = 1 - lambda.tail(mydim).sum();
+  lambda(0) = 1 - lambda.template tail<mydim>().sum();
 
 	return lambda;
 
@@ -62,8 +80,8 @@ template <UInt NNODES, UInt mydim, UInt ndim>
 void Element<NNODES,mydim,ndim>::computeProperties()
 {
 	for (int i=0; i<mydim; ++i){
-			std::array<Real,ndim> diff{this->points_[i+1] - this->points_[0]};
-			this->M_J_.col(i) = Eigen::Map<Eigen::Matrix<Real,ndim,1> >(diff.data());
+			Point<ndim> diff{this->points_[i+1] - this->points_[0]};
+			this->M_J_.col(i) = Eigen::Map<Eigen::Matrix<Real,ndim,1> >(&diff[0]);
 	}
 	// NOTE: for small (not bigger than 4x4) matrices eigen directly calculates
 	// determinants and inverses, it is very efficient!
@@ -94,8 +112,8 @@ template <UInt NNODES>
 void Element<NNODES,2,3>::computeProperties()
 {
 	for (int i=0; i<2; ++i){
-		  std::array<Real,3> diff{this->points_[i+1] - this->points_[0]};
-			this->M_J_.col(i) = Eigen::Map<Eigen::Matrix<Real,3,1> >(diff.data());
+		  Point<3> diff{this->points_[i+1] - this->points_[0]};
+			this->M_J_.col(i) = Eigen::Map<Eigen::Matrix<Real,3,1> >(&diff[0]);
 	}
 
 	// NOTE: for small (not bigger than 4x4) matrices eigen directly calculates
@@ -111,10 +129,10 @@ void Element<NNODES,2,3>::computeProperties()
 template <UInt NNODES>
 bool Element<NNODES,2,3>::isPointInside(const Point<3>& point) const
 {
-	std::array<Real,3> diff{point - this->points_[0]};
+	Point<3> diff{point - this->points_[0]};
 
  	Eigen::Matrix<Real,3,3> A;
- 	A << this->M_J_, Eigen::Map<Eigen::Matrix<Real,3,1> >(diff.data());
+ 	A << this->M_J_, Eigen::Map<Eigen::Matrix<Real,3,1> >(&diff[0]);
 
  	// NOTE: this method is as fast as ColPivHouseholderQR for such small matrices
  	// but this is optimized for rank computations (see eigen documentation)
@@ -157,7 +175,6 @@ Point<3> Element<NNODES,2,3>::computeProjection(const Point<3>& point) const
 	else if (lambda(0)<0 && lambda(1)<0 && lambda(2)>0)
 		return this->points_[2];
 
-
 	Eigen::Matrix<Real,3,1> coords3D;
 	// If (+,+,+) the projection lies inside the element
 	// So just convert back to 3D coords
@@ -191,12 +208,12 @@ template <>
 inline Real ElementCore<6,2,2>::evaluate_point(const Point<2>& point, const Eigen::Matrix<Real,6,1>& coefficients) const
 {
 	Eigen::Matrix<Real,3,1> lambda = this->getBaryCoordinates(point);
-  return( coefficients[0]*lambda[0]*(2*lambda[0] - 1) +
-            coefficients[1]*lambda[1]*(2*lambda[1] - 1) +
-            coefficients[2]*lambda[2]*(2*lambda[2] - 1) +
-            coefficients[3]*4*lambda[1]*lambda[2] +
-            coefficients[4]*4*lambda[2]*lambda[0] +
-            coefficients[5]*4*lambda[0]*lambda[1] );
+  return coefficients[0] * lambda[0] * (2*lambda[0]-1) +
+         coefficients[1] * lambda[1] * (2*lambda[1]-1) +
+         coefficients[2] * lambda[2] * (2*lambda[2]-1) +
+         coefficients[3] * 4 * lambda[1] * lambda[2] +
+         coefficients[4] * 4 * lambda[2] * lambda[0] +
+         coefficients[5] * 4 * lambda[0] * lambda[1];
 }
 
  // Full specialization for order 2 in 2.5D
@@ -204,12 +221,12 @@ template <>
 inline Real ElementCore<6,2,3>::evaluate_point(const Point<3>& point, const Eigen::Matrix<Real,6,1>& coefficients) const
 {
 	Eigen::Matrix<Real,3,1> lambda = this->getBaryCoordinates(point);
-	return( coefficients[0]*lambda[0]*(2*lambda[0] - 1) +
-            coefficients[1]*lambda[1]*(2*lambda[1] - 1) +
-            coefficients[2]*lambda[2]*(2*lambda[2] - 1) +
-            coefficients[3]*4*lambda[1]*lambda[2] +
-            coefficients[4]*4*lambda[2]*lambda[0] +
-            coefficients[5]*4*lambda[0]*lambda[1] );
+	return coefficients[0] * lambda[0] * (2*lambda[0]-1) +
+         coefficients[1] * lambda[1] * (2*lambda[1]-1) +
+         coefficients[2] * lambda[2] * (2*lambda[2]-1) +
+         coefficients[3] * 4 * lambda[1]*lambda[2] +
+         coefficients[4] * 4 * lambda[2]*lambda[0] +
+         coefficients[5] * 4 * lambda[0]*lambda[1];
 }
 
 // Full specialization for order 2 in 3D
@@ -218,16 +235,16 @@ template <>
 inline Real ElementCore<10,3,3>::evaluate_point(const Point<3>& point, const Eigen::Matrix<Real,10,1>& coefficients) const
 {
  Eigen::Matrix<Real,4,1> lambda = this->getBaryCoordinates(point);
- return( coefficients[0]*lambda[0]*(2*lambda[0] - 1) +
-           coefficients[1]*lambda[1]*(2*lambda[1] - 1) +
-           coefficients[2]*lambda[2]*(2*lambda[2] - 1) +
-           coefficients[3]*lambda[3]*(2*lambda[3] - 1) +
-           coefficients[4]*(4*lambda[1]*lambda[0]) +
-           coefficients[5]*(4*lambda[2]*lambda[0]) +
-           coefficients[6]*(4*lambda[3]*lambda[0]) +
-           coefficients[7]*(4*lambda[1]*lambda[2]) +
-           coefficients[8]*(4*lambda[2]*lambda[3]) +
-           coefficients[9]*(4*lambda[3]*lambda[1]) );
+ return coefficients[0] * lambda[0] * (2*lambda[0]-1) +
+        coefficients[1] * lambda[1] * (2*lambda[1]-1) +
+        coefficients[2] * lambda[2] * (2*lambda[2]-1) +
+        coefficients[3] * lambda[3] * (2*lambda[3]-1) +
+        coefficients[4] * 4 * lambda[1] * lambda[0] +
+        coefficients[5] * 4 * lambda[2] * lambda[0] +
+        coefficients[6] * 4 * lambda[3] * lambda[0] +
+        coefficients[7] * 4 * lambda[1] * lambda[2] +
+        coefficients[8] * 4 * lambda[2] * lambda[3] +
+        coefficients[9] * 4 * lambda[3] * lambda[1];
 }
 
 
@@ -239,7 +256,7 @@ inline Eigen::Matrix<Real,ndim,1> ElementCore<NNODES,mydim,ndim>::evaluate_der_p
   B1.col(0).setConstant(-1);
   B1.rightCols(mydim).setIdentity();
 
-  return(this->M_invJ_.transpose()*B1*coefficients);
+  return this->M_invJ_.transpose()*B1*coefficients;
 }
 
 // Full specialization for order 2 in 2D
@@ -251,7 +268,7 @@ inline Eigen::Matrix<Real,2,1> ElementCore<6,2,2>::evaluate_der_point(const Poin
 	Eigen::Matrix<Real,2,6> B2;
   B2 << 1-bar4(0), bar4(1)-1,           0, bar4(2),        -bar4(2), bar4(0)-bar4(1),
         1-bar4(0),           0, bar4(2)-1, bar4(1), bar4(0)-bar4(2),        -bar4(1);
-	return(this->M_invJ_.transpose()*B2*coefficients);
+	return this->M_invJ_.transpose()*B2*coefficients;
 }
 
 // Full specialization for order 2 in 2.5D
@@ -263,7 +280,7 @@ inline Eigen::Matrix<Real,3,1> ElementCore<6,2,3>::evaluate_der_point(const Poin
 	Eigen::Matrix<Real,2,6> B2;
   B2 << 1-bar4(0), bar4(1)-1,           0, bar4(2),        -bar4(2), bar4(0)-bar4(1),
         1-bar4(0),           0, bar4(2)-1, bar4(1), bar4(0)-bar4(2),        -bar4(1);
-	return(this->M_invJ_.transpose()*B2*coefficients);
+	return this->M_invJ_.transpose()*B2*coefficients;
 }
 
 // Full specialization for order 2 in 3D
@@ -278,7 +295,7 @@ inline Eigen::Matrix<Real,3,1> ElementCore<10,3,3>::evaluate_der_point(const Poi
         1-bar4(0),           0, bar4(2)-1,         0,        -bar4(1), bar4(0)-bar4(2),        -bar4(3),  bar4(1),  bar4(3),       0,
         1-bar4(0),           0,         0, bar4(3)-1,        -bar4(1),        -bar4(2), bar4(0)-bar4(3),        0,  bar4(2), bar4(1);
 
-	return(this->M_invJ_.transpose()*B2*coefficients);
+	return this->M_invJ_.transpose()*B2*coefficients;
 }
 
 
@@ -294,16 +311,24 @@ inline Real ElementCore<NNODES,mydim,ndim>::integrate(const Eigen::Matrix<Real,N
 template <>
 inline Real ElementCore<6,2,2>::integrate(const Eigen::Matrix<Real,6,1>& coefficients) const
 {
-	// Evaluate the function on midpoints and weight each term equally
-	return this->getMeasure() * coefficients.tail<3>().mean();
+	static constexpr Real basis_fun[]={2, -1, -1, 1, 4, 4,
+																		 -1, 2, -1, 4, 1, 4,
+																		 -1, -1, 2, 4, 4, 1,
+																		};
+
+	return this->getMeasure()/27 * coefficients.replicate<3,1>().dot(Eigen::Map<const Eigen::Matrix<Real,18,1> >(basis_fun));
 }
 
 // Full specialization for order 2 in 2.5D
 template <>
 inline Real ElementCore<6,2,3>::integrate(const Eigen::Matrix<Real,6,1>& coefficients) const
 {
-	// Evaluate the function on midpoints and weight each term equally
-	return this->getMeasure() * coefficients.tail<3>().mean();
+	static constexpr Real basis_fun[]={2, -1, -1, 1, 4, 4,
+																		 -1, 2, -1, 4, 1, 4,
+																		 -1, -1, 2, 4, 4, 1,
+																		};
+
+	return this->getMeasure()/27 * coefficients.replicate<3,1>().dot(Eigen::Map<const Eigen::Matrix<Real,18,1> >(basis_fun));
 }
 
 // Full specialization for order 2 in 3D
@@ -312,13 +337,13 @@ template <>
 inline Real ElementCore<10,3,3>::integrate(const Eigen::Matrix<Real,10,1>& coefficients) const
 {
 	// In this case a more complicated integration scheme is needed!
-	static constexpr Real shape_fun[]={0, -1./9, -1./9, -1./9, 1./3, 1./3, 1./3, 1./9, 1./9, 1./9,
-																		-1./9, 0, -1./9, -1./9, 1./3, 1./9, 1./9, 1./3, 1./9, 1./3,
-																		-1./9, -1./9, 0, -1./9, 1./9, 1./3, 1./9, 1./3, 1./3, 1./9,
-																		-1./9, -1./9, -1./9, 0, 1./9, 1./9, 1./3, 1./9, 1./3, 1./3};
+	static constexpr Real basis_fun[]={0.1, -0.1, -0.1, -0.1, 0.323606797749979, 0.323606797749979, 0.323606797749979, 0.076393202250021, 0.076393202250021, 0.076393202250021,
+																		 -0.1, 0.1, -0.1, -0.1, 0.323606797749979, 0.076393202250021, 0.076393202250021, 0.323606797749979, 0.076393202250021, 0.323606797749979,
+																		 -0.1, -0.1, 0.1, -0.1, 0.076393202250021, 0.323606797749979, 0.076393202250021, 0.323606797749979, 0.323606797749979, 0.076393202250021,
+																		 -0.1, -0.1, -0.1, 0.1, 0.076393202250021, 0.076393202250021, 0.323606797749979, 0.076393202250021, 0.323606797749979, 0.323606797749979
+																		};
 
-	return this->getMeasure() * (-.8*(-.125*coefficients.head<4>().sum()+.25*coefficients.tail<6>().sum())+
-			.45*coefficients.replicate<4,1>().dot(Eigen::Map<const Eigen::Matrix<Real,40,1> >(shape_fun)));
+	return this->getMeasure() * 0.25*coefficients.replicate<4,1>().dot(Eigen::Map<const Eigen::Matrix<Real,40,1> >(basis_fun));
 }
 
 
