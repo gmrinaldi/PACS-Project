@@ -80,34 +80,23 @@ class Point : public Identifier{
     Real dist(const Point&) const;
     Real dist2(const Point&) const;
 
-    friend Real dist(const Point& lhs, const Point& rhs){return lhs.dist(rhs);};
-    friend Real dist2(const Point& lhs, const Point& rhs){return lhs.dist2(rhs);};
+    friend Real dist(const Point& lhs, const Point& rhs) {return lhs.dist(rhs);};
+    friend Real dist2(const Point& lhs, const Point& rhs) {return lhs.dist2(rhs);};
 
+    Point& operator+=(const Point&);
+    Point& operator-=(const Point&);
     // Overload the "+" ("-") operator to take 2 points of the same dimension and compute
     // the coordinate sum (difference).
-    friend Point operator +(const Point& lhs, const Point& rhs){
-      pointCoords sum{lhs.coord_};
-      for (int i=0; i<ndim; ++i)
-          sum[i]+=rhs[i];
-      return sum;
-    };
-
-    friend Point operator -(const Point& lhs, const Point& rhs){
-      pointCoords diff{lhs.coord_};
-      for (int i=0; i<ndim; ++i)
-          diff[i]-=rhs[i];
-      return diff;
-    };
+    friend Point operator +(Point lhs, const Point& rhs) {return lhs+=rhs;};
+    friend Point operator -(Point lhs, const Point& rhs) {return lhs-=rhs;};
 
     //! Overload the << operator to easily print Point info (note: define it in class
     // to avoid a forward declaration)
     friend std::ostream& operator<<(std::ostream& os, const Point& p){
-      if(p.unassignedId())
-        os<<"Point: ";
-      else
-        os<<"Point "<<p.getId()<<": ";
+      if(p.hasValidId())
+        os<<p.getId()<<":";
       for (const auto &c : p.coord_)
-        os<<c<<" ";
+        os<<" "<<c;
       return os<<std::endl;
     }
 
@@ -187,6 +176,7 @@ public:
   using elementPoints = std::array<Point<ndim>,NNODES>;
   using iterator = typename elementPoints::iterator;
   using const_iterator = typename elementPoints::const_iterator;
+  using EigenMap2Const_t = typename Eigen::Map<const Eigen::Matrix<Real,ndim,1> >;
 
   //! This constructor creates an "empty" Element, with an Id Not Valid
   ElementCore() :
@@ -263,6 +253,8 @@ template <UInt NNODES, UInt mydim, UInt ndim>
 class Element : public ElementCore<NNODES,mydim,ndim> {
 public:
   using elementPoints = typename ElementCore<NNODES,mydim,ndim>::elementPoints;
+  using EigenMap2Const_t = typename ElementCore<NNODES,mydim,ndim>::EigenMap2Const_t;
+
   //! This constructor creates an "empty" Element, with an Id Not Valid
   Element() :
         ElementCore<NNODES,mydim,ndim>() {}
@@ -291,6 +283,8 @@ template <UInt NNODES>
 class Element<NNODES, 2,3> : public ElementCore<NNODES,2,3> {
 public:
   using elementPoints = typename ElementCore<NNODES,2,3>::elementPoints;
+  using EigenMap2Const_t = typename ElementCore<NNODES,2,3>::EigenMap2Const_t;
+
   //! This constructor creates an "empty" Element, with an Id Not Valid
   Element() :
         ElementCore<NNODES,2,3>() {}

@@ -46,77 +46,36 @@ void FiniteElement<Integrator, ORDER, mydim, ndim>::setPhiDerMaster()
 }
 
 template <class Integrator, UInt ORDER, UInt mydim, UInt ndim>
-Real FiniteElement<Integrator, ORDER, mydim, ndim>::phiMaster(UInt i, UInt iq) const
-{
-	return phiMapMaster_(i, iq);
-}
-
-template <class Integrator, UInt ORDER, UInt mydim, UInt ndim>
-Real FiniteElement<Integrator, ORDER, mydim, ndim>::phiDerMaster(UInt i, UInt ic, UInt iq) const
-{
-	return phiDerMapMaster_(i, iq*mydim + ic);
-}
-
-template <class Integrator, UInt ORDER, UInt mydim, UInt ndim>
-Real FiniteElement<Integrator, ORDER, mydim, ndim>::invTrJPhiDerMaster(UInt i, UInt ic, UInt iq) const
-{
-	return invTrJPhiDerMapMaster_(i, iq*mydim + ic);
-}
-
-template <class Integrator, UInt ORDER, UInt mydim, UInt ndim>
 void FiniteElement<Integrator, ORDER, mydim, ndim>::setInvTrJPhiDerMaster()
 {
 	// we need J^(-T) nabla( phi)
 	for (auto iq=0; iq < Integrator::NNODES; ++iq)
-			invTrJPhiDerMapMaster_.template block<NBASES,mydim>(0,mydim*iq).noalias() = phiDerMapMaster_.template block<NBASES,mydim>(0,mydim*iq)*t_.getM_invJ();
+			invTrJPhiDerMapMaster_.template block<NBASES,ndim>(0,ndim*iq).noalias() = phiDerMapMaster_.template block<NBASES,mydim>(0,mydim*iq)*t_.getM_invJ();
 }
 
-//! Implementazione EF mydim=2, ndim=3
-
-
-template <class Integrator, UInt ORDER>
-FiniteElement<Integrator, ORDER,2,3>::FiniteElement()
-{
-	//How it will be used, it does not depend on J^-1 -> set one time
-	setPhiMaster();
-	setPhiDerMaster();
+template <class Integrator, UInt ORDER, UInt mydim, UInt ndim>
+Real FiniteElement<Integrator, ORDER, mydim, ndim>::stiff_impl(UInt i, UInt j, UInt iq){
+	// compute nabla(phi_i) dot nabla(phi_j) at node iq
+	return invTrJPhiDerMapMaster_.template block<1,ndim>(i,ndim*iq).dot(invTrJPhiDerMapMaster_.template block<1,ndim>(j,ndim*iq));
 }
 
-
-template <class Integrator, UInt ORDER>
-void FiniteElement<Integrator, ORDER,2,3>::updateElement(const Element<NBASES,2,3> &t)
-{
-	t_ = t;
-
-	//it does depend on J^-1 -> set for each element
-	metric_ = t.getMetric();
-
+template <class Integrator, UInt ORDER, UInt mydim, UInt ndim>
+Real FiniteElement<Integrator, ORDER, mydim, ndim>::stiff_anys_impl(UInt i, UInt j, UInt iq, const Eigen::Matrix<Real,2,2>& K){
+	// compute nabla(phi_i) dot K nabla(phi_j) at node iq
+	// Memo: K is symmetric!
+	return invTrJPhiDerMapMaster_.template block<1,ndim>(i,ndim*iq).transpose()*K*invTrJPhiDerMapMaster_.template block<1,ndim>(j,ndim*iq);
 }
 
-template <class Integrator, UInt ORDER>
-void FiniteElement<Integrator, ORDER,2,3>::setPhiMaster()
-{
-	for(UInt iq=0; iq<Integrator::NNODES; ++iq)
-		phiMapMaster_.col(iq)=reference_eval_point<NBASES,2>(Integrator::NODES[iq]);
+template <class Integrator, UInt ORDER, UInt mydim, UInt ndim>
+Real FiniteElement<Integrator, ORDER, mydim, ndim>::mass_impl(UInt i, UInt j, UInt iq){
+	// compute phi_i x phi_j at node iq
+	return phiMapMaster_(i,iq)*phiMapMaster_(j,iq);
 }
 
-template <class Integrator, UInt ORDER>
-void FiniteElement<Integrator, ORDER,2,3>::setPhiDerMaster()
-{
-	for(UInt iq=0; iq<Integrator::NNODES; ++iq)
-		phiDerMapMaster_.template block<NBASES, 2>(0, 2*iq)=reference_eval_der_point<NBASES,2>(Integrator::NODES[iq]);
-}
-
-template <class Integrator, UInt ORDER>
-Real FiniteElement<Integrator, ORDER,2,3>::phiMaster(UInt i, UInt iq) const
-{
-	return phiMapMaster_(i, iq);
-}
-
-template <class Integrator, UInt ORDER>
-Real FiniteElement<Integrator, ORDER,2,3>::phiDerMaster(UInt i, UInt ic, UInt iq) const
-{
-	return phiDerMapMaster_(i, iq*2 + ic);
+template <class Integrator, UInt ORDER, UInt mydim, UInt ndim>
+Real FiniteElement<Integrator, ORDER, mydim, ndim>::grad_impl(UInt i, UInt j, UInt iq){
+	// compute phi_i x nabla(phi_j) at node iq
+	return phiMapMaster_(i,iq)*invTrJPhiDerMapMaster_.template block<1,ndim>(j,ndim*iq);
 }
 
 
