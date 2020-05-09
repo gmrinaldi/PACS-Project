@@ -80,6 +80,8 @@ Real FiniteElement<Integrator, ORDER, mydim, ndim>::grad_impl(UInt i, UInt j, UI
 
 
 // Templates for auxiliary functions
+// This function evaluates the basis function on the reference element
+// at the quadrature nodes
 // This function covers all order 1 cases
 template<UInt NBASES, UInt mydim>
 Eigen::Matrix<Real, NBASES, 1> reference_eval_point(const Point<mydim> &node){
@@ -119,6 +121,8 @@ Eigen::Matrix<Real, 10, 1> reference_eval_point<10,3>(const Point<3> &node){
 	return phi;
 }
 
+// This function evaluates the ndim-gradient of basis function on the reference element
+// at the quadrature nodes
 // This function covers all order 1 cases
 template<UInt NBASES, UInt mydim>
 Eigen::Matrix<Real, NBASES,mydim> reference_eval_der_point(const Point<mydim> &node){

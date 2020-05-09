@@ -42,10 +42,13 @@ public:
     */
 	void updateElement(const Element<NBASES,mydim,ndim> &t);
 
+	const Point<ndim>& operator[](UInt i) const {return t_[i];}
 	// Both Area and Volume getter added for convenience
-	constexpr Real getAreaReference() {return 1./factorial(mydim);}
-	constexpr Real getVolumeReference() {return 1./factorial(mydim);}
-	Real getDet() {return t_.getDetJ();}
+	Real getMeasure() const {t_.getMeasure();}
+	Real getArea() const {t_.getMeasure();}
+	Real getVolume() const {t_.getMeasure();}
+
+	Real getId() const {return t_.getId();}
 
 	Point<ndim> coorQuadPt(UInt iq){
 		return Point<ndim>(t_.getM_J()*Eigen::Map<const Eigen::Matrix<Real,mydim,1> >(&Integrator::NODES[iq][0]))+=t_[0];

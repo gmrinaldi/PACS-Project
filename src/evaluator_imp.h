@@ -4,48 +4,30 @@
 template <UInt ORDER>
 void Evaluator<ORDER,2,2>::eval(Real* X, Real *Y, UInt length, const Real *coef, bool redundancy, Real* result, std::vector<bool>& isinside)
 {
-	constexpr UInt Nodes = 3*ORDER;
-	Element<Nodes,2,2> current_element;
-	// std::vector<Triangle<3*ORDER> > starting_triangles; Problem with alignment not solved
-	// by http://eigen.tuxfamily.org/dox-devel/group__TopicUnalignedArrayAssert.html
-	// starting_triangles.resize(1);
-	Element<Nodes,2,2> starting_element;
+	static constexpr UInt NNodes = 3*ORDER;
+	Element<NNodes,2,2> current_element;
+	Point<2> current_point;
+	Eigen::Matrix<Real,NNodes,1> coefficients;
 
-
-	Point current_point;
-	Eigen::Matrix<Real,Nodes,1> coefficients;
-	starting_element = mesh_.getElement(0);
+	Element<NNodes,2,2> starting_element{mesh_.getElement(0)};
 	for (int i = 0; i<length; ++i)
 	{
-		current_point = Point(X[i],Y[i]);
-
+		current_point = Point<2>({X[i],Y[i]});
 		current_element = mesh_.findLocationWalking(current_point, starting_element);
 
-		if(current_element.getId() == Identifier::NVAL && redundancy == true)
-		{
-			//To avoid problems with non convex mesh
-			//std::cout<<"Position Not Found Walking... \n";
+		if(current_element.unassignedId() && redundancy == true)
 			current_element = mesh_.findLocationNaive(current_point);
-			//std::cout<<"Naively...triangle: "<< current_triangle.getId()<<std::endl;
-		}
-		if(current_element.getId() == Identifier::NVAL)
-		{
-			//std::cout<<"Position Not Found Naively... \n";
+
+		if(current_element.unassignedId())
 			isinside[i]=false;
-
-//			#ifdef R_VERSION_
-//			Rprintf("Element %i not found! NA is returned \n", i);
-//		    #endif
-
-		}
 		else
 		{
 			isinside[i]=true;
-			for (int j=0; j<Nodes; ++j)
-			{
+
+			for (int j=0; j<NNodes; ++j)
 				coefficients[j] = coef[current_element[j].getId()];
-			}
-			result[i] = evaluate_point<Nodes,2,2>(current_element, current_point, coefficients);
+
+			result[i] = current_element.evaluate_point(current_point, coefficients);
 			starting_element = current_element;
 		}
 	}
@@ -56,37 +38,28 @@ template <UInt ORDER>
 void Evaluator<ORDER,2,3>::eval(Real* X, Real *Y,  Real *Z, UInt length, const Real *coef, bool redundancy, Real* result, std::vector<bool>& isinside)
 {
 
-	constexpr UInt Nodes = 3*ORDER;
-	Element<Nodes,2,3> current_element;
-	Element<Nodes,2,3> starting_element;
+	static constexpr UInt NNodes = 3*ORDER;
 
+	Element<NNodes,2,3> current_element;
+	Point<3> current_point;
 
-	Point current_point;
-
-	Eigen::Matrix<Real,Nodes,1> coefficients;
-	starting_element = mesh_.getElement(0);
+	Eigen::Matrix<Real,NNodes,1> coefficients;
 	for (int i = 0; i<length; ++i)
 	{
-		current_point = Point(X[i],Y[i],Z[i]);
+		current_point = Point<3>({X[i],Y[i],Z[i]});
 		current_element = mesh_.findLocationNaive(current_point);
 
-		if(current_element.getId() == Identifier::NVAL)
-		{
+		if(current_element.unassignedId())
 			isinside[i]=false;
-//			#ifdef R_VERSION_
-//			Rprintf("Element %i not found! NA is returned \n", i);
-//		    #endif
-		}
 		else
 		{
 			isinside[i]=true;
-			for (int j=0; j<(Nodes); ++j)
-			{
-				coefficients[j] = coef[current_element[j].getId()];
-			}
-			result[i] = evaluate_point<Nodes,2,3>(current_element, current_point, coefficients);
 
-			starting_element = current_element;
+			for (int j=0; j<NNodes; ++j)
+				coefficients[j] = coef[current_element[j].getId()];
+
+			result[i] = current_element.evaluate_point(current_point, coefficients);
+
 		}
 	}
 }
@@ -96,67 +69,83 @@ template <UInt ORDER>
 void Evaluator<ORDER,3,3>::eval(Real* X, Real *Y,  Real *Z, UInt length, const Real *coef, bool redundancy, Real* result, std::vector<bool>& isinside)
 {
 
-	constexpr UInt Nodes = 6*ORDER-2;
-	Element<Nodes,3,3> current_element;
-	Element<Nodes,3,3> starting_element;
+	static constexpr UInt NNodes = 6*ORDER-2;
+	Element<NNodes,3,3> current_element;
 
+	Point<3> current_point;
 
-	Point current_point;
+	Eigen::Matrix<Real,NNodes,1> coefficients;
+	Element<NNodes,3,3>starting_element = mesh_.getElement(0);
 
-	Eigen::Matrix<Real,Nodes,1> coefficients;
-	starting_element = mesh_.getElement(0);
 	for (int i = 0; i<length; ++i)
 	{
-		current_point = Point(X[i],Y[i],Z[i]);
-		current_element = mesh_.findLocationNaive(current_point);
+		current_point = Point<3>({X[i],Y[i],Z[i]});
+		current_element = mesh_.findLocationWalking(current_point, starting_element);
 
-		if(current_element.getId() == Identifier::NVAL)
-		{
+		if(current_element.unassignedId() && redundancy == true)
+			current_element = mesh_.findLocationNaive(current_point);
+
+		if(current_element.unassignedId())
 			isinside[i]=false;
-//			#ifdef R_VERSION_
-//			Rprintf("Element %i not found! NA is returned \n", i);
-//		    #endif
-		}
 		else
 		{
 			isinside[i]=true;
-			for (int j=0; j<Nodes; ++j)
-			{
-				coefficients[j] = coef[current_element[j].getId()];
-			}
-			result[i] = evaluate_point<Nodes,3,3>(current_element, current_point, coefficients);
 
+			for (int j=0; j<NNodes; ++j)
+				coefficients[j] = coef[current_element[j].getId()];
+
+			result[i] = current_element.evaluate_point(current_point, coefficients);
 			starting_element = current_element;
 		}
 	}
 }
 
 
-// This works for 2D and 2.5D!
-template <UInt ORDER, mydim, ndim>
-void Evaluator<ORDER, mydim, ndim>::integrate(UInt** incidenceMatrix, UInt nRegions, UInt nElements, const Real *coef, Real* result)
+template <UInt ORDER>
+void Evaluator<ORDER, 2, 2>::integrate(UInt** incidenceMatrix, UInt nRegions, UInt nElements, const Real *coef, Real* result)
 {
-	std::vector<Real> Delta(nRegions);
-	std::vector<Real> integral(nRegions);
-	constexpr UInt NNODES = how_many_nodes(ORDER,mydim);
-	Element<NNODES, mydim, ndim> current_element;
+	std::vector<Real> Delta(nRegions, 0);
+	std::vector<Real> integral(nRegions, 0);
+	static constexpr UInt NNodes = 3*ORDER;
+	Element<Nodes, 2, 2> current_element;
 
 	for (int region=0; region<nRegions; ++region)
 	{
-		Delta[region]=0;
-		integral[region]=0;
 		for (int elem=0; elem<nElements; ++elem)
 		{
 			if (incidenceMatrix[region][elem]==1) //elem is in region
 			{
-				current_element = mesh_.getElement(elem);
-				Real measure = current_element.getArea();
-				Delta[region] += measure;
-				Real sum = 0;
-				// Note: this works because of linearity/equal weights!
-				for (int node = 3*(ORDER==2); node<NNODES; ++node)
-					sum+=coef[current_element[node].getId()];
-				integral[region] += measure*sum/3;
+				Eigen::Matrix<Real,NNodes,1> coefficients;
+				for (int i=0; i<NNodes; ++i)
+					coefficients[i]=coef[current_element[i].getId()];
+				Delta[region] += current_element.getMeasure();
+				integral[region] += current_element.integrate(coefficients);
+			}
+		}
+		result[region]=integral[region]/Delta[region];
+	}
+}
+
+
+template <UInt ORDER>
+void Evaluator<ORDER, 2, 3>::integrate(UInt** incidenceMatrix, UInt nRegions, UInt nElements, const Real *coef, Real* result)
+{
+	std::vector<Real> Delta(nRegions, 0);
+	std::vector<Real> integral(nRegions, 0);
+	static constexpr UInt NNodes = 3*ORDER;
+	Element<Nodes, 2, 3> current_element;
+
+	for (int region=0; region<nRegions; ++region)
+	{
+		for (int elem=0; elem<nElements; ++elem)
+		{
+			if (incidenceMatrix[region][elem]==1) //elem is in region
+			{
+				Eigen::Matrix<Real,NNodes,1> coefficients;
+				for (int i=0; i<NNodes; ++i)
+					coefficients[i]=coef[current_element[i].getId()];
+				Delta[region] += current_element.getMeasure();
+				integral[region] += current_element.integrate(coefficients);
 			}
 		}
 		result[region]=integral[region]/Delta[region];
@@ -167,35 +156,25 @@ void Evaluator<ORDER, mydim, ndim>::integrate(UInt** incidenceMatrix, UInt nRegi
 template <UInt ORDER>
 void Evaluator<ORDER, 3, 3>::integrate(UInt** incidenceMatrix, UInt nRegions, UInt nElements, const Real *coef, Real* result)
 {
-	std::vector<Real> Delta(nRegions);
-	std::vector<Real> integral(nRegions);
-	constexpr UInt Nodes = 6*ORDER-2;
+	std::vector<Real> Delta(nRegions, 0);
+	std::vector<Real> integral(nRegions, 0);
+	static constexpr UInt NNodes = 6*ORDER-2;
 	Element<Nodes, 3, 3> current_element;
 
-	for (int region=0; region<nRegions; region++)
+	for (int region=0; region<nRegions; ++region)
 	{
-		Delta[region]=0;
-		integral[region]=0;
-		for (int elem=0; elem<nElements; elem++)
+		for (int elem=0; elem<nElements; ++elem)
 		{
 			if (incidenceMatrix[region][elem]==1) //elem is in region
 			{
-				current_element = mesh_.getElement(elem);
-				Real measure = mesh_.elementMeasure(elem);
-				Delta[region] += measure;
-
-				// THIS IS ONLY FOR ORDER==1
-				Real s = 0;
-				for (int node=0; node<Nodes; node++)
-				{
-					s+=coef[current_element[node].getId()];
-				}
-				integral[region] += measure*s/(3+1);
-
+				Eigen::Matrix<Real,NNodes,1> coefficients;
+				for (int i=0; i<NNodes; ++i)
+					coefficients[i]=coef[current_element[i].getId()];
+				Delta[region] += current_element.getMeasure();
+				integral[region] += current_element.integrate(coefficients);
 			}
 		}
 		result[region]=integral[region]/Delta[region];
-
 	}
 }
 

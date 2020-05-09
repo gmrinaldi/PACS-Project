@@ -6,20 +6,18 @@ template<UInt ORDER, typename Integrator, typename A>
 void Assembler::operKernel(EOExpr<A> oper,const MeshHandler<ORDER,2,2>& mesh,
 	                     FiniteElement<Integrator, ORDER,2,2>& fe, SpMat& OpMat)
 {
-	Real eps = 2.2204e-016,
+	static constexpr Real eps = std::numeric_limits<Real>::epsilon(),
 		 tolerance = 10 * eps;
 	std::vector<coeff> triplets;
 
-
-  	for(auto t=0; t<mesh.num_elements(); t++)
-  	{
+  for(auto t=0; t<mesh.num_elements(); ++t){
 		fe.updateElement(mesh.getElement(t));
 
 		// Vector of vertices indices (link local to global indexing system)
 		std::vector<UInt> identifiers;
-		identifiers.resize(3*ORDER);
-		for( auto q=0; q<3*ORDER; q++)
-			identifiers[q]=mesh.getElement(t)[q].id();
+		identifiers.reserve(3*ORDER);
+		for(auto q=0; q<3*ORDER; ++q)
+			identifiers.push_back(fe[q].id());
 
 		//localM=localMassMatrix(currentelem);
 		for(int i = 0; i < 3*ORDER; i++)
@@ -30,7 +28,7 @@ void Assembler::operKernel(EOExpr<A> oper,const MeshHandler<ORDER,2,2>& mesh,
 
 				for(int l = 0;l < Integrator::NNODES; l++)
 				{
-					s += oper(fe,i,j,l) * fe.getDet() * fe.getAreaReference() * Integrator::WEIGHTS[l];
+					s += oper(fe,i,j,l) * fe.getArea() * Integrator::WEIGHTS[l];
 				}
 			  triplets.push_back(coeff(identifiers[i],identifiers[j],s));
 			}
@@ -70,7 +68,7 @@ void Assembler::forcingTerm(const MeshHandler<ORDER,2,2>& mesh,
 			for(int iq = 0;iq < Integrator::NNODES; iq++)
 			{
 				UInt globalIndex = fe.getGlobalIndex(iq);
-				s +=  fe.phiMaster(i,iq)* u(globalIndex) * fe.getDet() * fe.getAreaReference()* Integrator::WEIGHTS[iq];//(*)
+				s +=  fe.phiMaster(i,iq)* u(globalIndex) * fe.getArea()* Integrator::WEIGHTS[iq];//(*)
 			}
 			forcingTerm[identifiers[i]] += s;
 		}
@@ -109,7 +107,7 @@ void Assembler::operKernel(EOExpr<A> oper,const MeshHandler<ORDER,2,3>& mesh,
 
 				for(int l = 0;l < Integrator::NNODES; l++)
 				{
-					s += oper(fe,i,j,l) * std::sqrt(fe.getDet()) * fe.getAreaReference()* Integrator::WEIGHTS[l];
+					s += oper(fe,i,j,l) * fe.getArea() * Integrator::WEIGHTS[l];
 				}
 			  triplets.push_back(coeff(identifiers[i],identifiers[j],s));
 			}
@@ -152,7 +150,7 @@ void Assembler::forcingTerm(const MeshHandler<ORDER,2,3>& mesh,
 			for(int iq = 0;iq < Integrator::NNODES; iq++)
 			{
 				UInt globalIndex = fe.getGlobalIndex(iq);
-				s +=  fe.phiMaster(i,iq)* u(globalIndex) * std::sqrt(fe.getDet()) * fe.getAreaReference()* Integrator::WEIGHTS[iq];//(*)
+				s +=  fe.phiMaster(i,iq)* u(globalIndex) * fe.getArea() * Integrator::WEIGHTS[iq];//(*)
 			}
 			forcingTerm[identifiers[i]] += s;
 		}
@@ -191,7 +189,7 @@ void Assembler::operKernel(EOExpr<A> oper,const MeshHandler<ORDER,3,3>& mesh,
 
 				for(int l = 0;l < Integrator::NNODES; l++)
 				{
-					s += oper(fe,i,j,l) * std::sqrt(fe.getDet()) * fe.getVolumeReference()* Integrator::WEIGHTS[l];
+					s += oper(fe,i,j,l) * fe.getVolume() * Integrator::WEIGHTS[l];
 				}
 			  triplets.push_back(coeff(identifiers[i],identifiers[j],s));
 			}
@@ -234,7 +232,7 @@ void Assembler::forcingTerm(const MeshHandler<ORDER,3,3>& mesh,
 			for(int iq = 0;iq < Integrator::NNODES; iq++)
 			{
 				UInt globalIndex = fe.getGlobalIndex(iq);
-				s +=  fe.phiMaster(i,iq)* u(globalIndex) * std::sqrt(fe.getDet()) * fe.getVolumeReference()* Integrator::WEIGHTS[iq];//(*)
+				s +=  fe.phiMaster(i,iq)* u(globalIndex) * fe.getVolume() * Integrator::WEIGHTS[iq];//(*)
 			}
 			forcingTerm[identifiers[i]] += s;
 		}

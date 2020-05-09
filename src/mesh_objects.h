@@ -166,154 +166,97 @@ class Edge : public Identifier{
 // The midpoints are also expected to follow this convention!
 
 template <UInt NNODES, UInt mydim, UInt ndim>
-class ElementCore : public Identifier {
+class Element : public Identifier {
+  // Some useful type aliases
+  using EigenMap2Const_t = Eigen::Map<const Eigen::Matrix<Real,ndim,1> >;
+  using is_manifold_element = std::integral_constant<bool,(mydim<ndim)>;
+
 public:
 	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 	static constexpr UInt numVertices=mydim+1;
 	static constexpr UInt numSides=mydim*(mydim+1)/2;
 	static constexpr UInt myDim=mydim;
 
+  // Some more useful type aliases (these could be useful outside the class
+  // so they are public)
   using elementPoints = std::array<Point<ndim>,NNODES>;
   using iterator = typename elementPoints::iterator;
   using const_iterator = typename elementPoints::const_iterator;
-  using EigenMap2Const_t = typename Eigen::Map<const Eigen::Matrix<Real,ndim,1> >;
 
   //! This constructor creates an "empty" Element, with an Id Not Valid
-  ElementCore() :
-          Identifier(NVAL) {}
-
-  //! This constructor creates an "empty" Element, with a given Id
-  ElementCore(Id id) :
-          Identifier(id) {}
+  Element()=default;
 
 	//! This constructor creates an Element, given its Id and an std array with the Points
-	ElementCore(Id id, const elementPoints& points) :
-					Identifier(id), points_(points) {}
-
-  // Default destructor
-  virtual ~ElementCore()=default;
+	Element(Id id, const elementPoints& points) :
+					Identifier(id), points_(points) {this->computeProperties(is_manifold_element());}
 
 	//! Overloading of the operator [],  taking the Node number and returning a node as a reference to a Point object.
-  Point<ndim>& operator[](UInt i) {return points_[i];}
+  // Point<ndim>& operator[](UInt i) {return points_[i];}
 	const Point<ndim>& operator[](UInt i) const {return points_[i];}
 
   //! Define begin and end iterators (this also gives "ranged for" for free)
-  iterator begin() {return points_.begin();}
-  iterator end() {return points_.end();}
+  // iterator begin() {return points_.begin();}
+  // iterator end() {return points_.end();}
 
   //! Define const begin and end iterators
   const_iterator begin() const {return points_.begin();}
   const_iterator end() const {return points_.end();}
 
-	Real getDetJ() const {return detJ_;}
 	const Eigen::Matrix<Real,ndim,mydim>& getM_J() const {return M_J_;}
 	const Eigen::Matrix<Real,mydim,ndim>& getM_invJ() const {return M_invJ_;} //in 2.5D this is actually the pseudoinverse!
-	const Eigen::Matrix<Real,mydim,mydim>& getMetric() const {return metric_;}
 
   //! A member that computes the barycentric coordinates.
 	Eigen::Matrix<Real,mydim+1,1> getBaryCoordinates(const Point<ndim>& point) const;
 
   //! A member that tests if a Point is located inside an Element.
-  virtual bool isPointInside(const Point<ndim>& point) const;
+  bool isPointInside(const Point<ndim>& point) const {return this->isPointInsideImpl(point, is_manifold_element());}
 
-  //! A member returning the area/volume of the element
-  virtual Real getMeasure() const =0;
+  //! A member that verifies which edge/face separates the Triangle/Tetrahedron from a Point.
+  // This function is not implemented for manifold data (we make sure of this at compile time using enable_if)
+  template <UInt m=mydim, UInt n=ndim>
+  typename std::enable_if<n==m && n==ndim && m==mydim, int>::type getPointDirection(const Point<ndim>&) const;
 
-  //! A member to evaluate functions in a point inside the element
-  Real evaluate_point(const Point<ndim>& point, const Eigen::Matrix<Real,NNODES,1>&) const;
-  //! A member to evaluate derivatives at a point inside the element
-  Eigen::Matrix<Real,ndim,1> evaluate_der_point(const Point<ndim>& point, const Eigen::Matrix<Real,NNODES,1>&) const;
-  //! A member to evaluate integrals on the element
-  Real integrate(const Eigen::Matrix<Real,NNODES,1>&) const;
-
-	//! Overload the << operator to easily print element info (note: define it in class
-  // to avoid a forward declaration)
-  friend std::ostream& operator<<(std::ostream& os, const ElementCore& el){
-    os<<"Element "<< el.getId() <<": ";
-    for (const auto &p : el)
-      os<<p.getId()<<" ";
-    return os<<std::endl;
-  }
-
-protected:
-	elementPoints points_;
-	Eigen::Matrix<Real,ndim,mydim> M_J_;
-	Eigen::Matrix<Real,mydim,ndim> M_invJ_; //in 2.5D this is actually the pseudoinverse!
-	Eigen::Matrix<Real,mydim,mydim> metric_;
-	Real detJ_;
-
-  // pure virtual member to make ElementCore an abstract base class
-  virtual void computeProperties()=0;
-};
-
-
-
-// This class adds some useful methods for 2D and 3D elements
-template <UInt NNODES, UInt mydim, UInt ndim>
-class Element : public ElementCore<NNODES,mydim,ndim> {
-public:
-  using elementPoints = typename ElementCore<NNODES,mydim,ndim>::elementPoints;
-  using EigenMap2Const_t = typename ElementCore<NNODES,mydim,ndim>::EigenMap2Const_t;
-
-  //! This constructor creates an "empty" Element, with an Id Not Valid
-  Element() :
-        ElementCore<NNODES,mydim,ndim>() {}
-
-  //! This constructor creates an Element, given its Id and an std array with the three object Point the will define the Element
-  Element(Id id, const elementPoints& points) :
-        ElementCore<NNODES,mydim,ndim>(id,points) {this->computeProperties();}
-
-  //! A member returning the area/volume of the element
-  Real getMeasure() const {return std::abs(this->detJ_)/factorial(ndim);}
-  //! Additional members returning the area/volume of the element for convenience
+  //! Some members returning the area/volume of the element
+  Real getMeasure() const {return element_measure;}
   Real getArea() const {return this->getMeasure();}
   Real getVolume() const {return this->getMeasure();}
 
-  //! A member that verifies which edge/face separates the Triangle/Tetrahedron from a Point.
-  int getPointDirection(const Point<ndim>& point) const;
+  //! A member to evaluate functions at a point inside the element
+  Real evaluate_point(const Point<ndim>&, const Eigen::Matrix<Real,NNODES,1>&) const;
+  //! A member to evaluate integrals on the element
+  Real integrate(const Eigen::Matrix<Real,NNODES,1>&) const;
 
-private:
-  void computeProperties();
-
-};
-
-
-// This partial specialization deals with the 2.5D case
-template <UInt NNODES>
-class Element<NNODES, 2,3> : public ElementCore<NNODES,2,3> {
-public:
-  using elementPoints = typename ElementCore<NNODES,2,3>::elementPoints;
-  using EigenMap2Const_t = typename ElementCore<NNODES,2,3>::EigenMap2Const_t;
-
-  //! This constructor creates an "empty" Element, with an Id Not Valid
-  Element() :
-        ElementCore<NNODES,2,3>() {}
-
-  //! This constructor creates an Element, given its Id and an std array with the three object Point the will define the Element
-  Element(Id id, const elementPoints& points) :
-        ElementCore<NNODES,2,3>(id,points) {this->computeProperties();}
-
-  //! A member returning the area of the element
-  // Mind the sqrt!
-  Real getMeasure() const {return std::sqrt(this->detJ_)/2;}
-  //! Additional member returning the area added for convenience
-  Real getArea() const {return this->getMeasure();}
-
-  //! A member that tests if a Point is located inside an Element.
-  // Note: this is implemented (slightly) differently in this case
-  // because one has to check that the point lies on the same plane as the triangle!
-  bool isPointInside(const Point<3>& point) const;
-
+  // This funtion is implemented (and needed) only for manifold elements!
   // This function projects a 3D point (XYZ coordinates!) onto the element
   // Note: if the projection lies outside the element the function returns
   // the closest point on the boundary of the element instead
-  Point<3> computeProjection(const Point<3>& point) const;
+  template <UInt m=mydim, UInt n=ndim>
+  typename std::enable_if<(m<n) && n==ndim && m==mydim, Point<3> >::type computeProjection(const Point<3>&) const;
+
+	//! Overload the << operator to easily print element info (note: define it in class
+  // to avoid a forward declaration)
+  friend std::ostream& operator<<(std::ostream& os, const Element& el){
+    os<< el.getId() <<":";
+    for (const auto &p : el)
+      os<<" "<<p.getId();
+    return os<<std::endl;
+  }
 
 private:
-  void computeProperties();
+  // Data members
+	elementPoints points_;
+	Eigen::Matrix<Real,ndim,mydim> M_J_;
+	Eigen::Matrix<Real,mydim,ndim> M_invJ_; //in 2.5D this is actually the pseudoinverse!
+  Real element_measure;
+
+  // A few methods need special implementation for manifold data
+  // Use tag dispatching to distinguish
+  void computeProperties(std::false_type);
+  void computeProperties(std::true_type);
+  bool isPointInsideImpl(const Point<ndim>&,std::false_type) const;
+  bool isPointInsideImpl(const Point<ndim>&,std::true_type) const;
 
 };
-
 
 
 #include "mesh_objects_imp.h"

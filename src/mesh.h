@@ -6,11 +6,11 @@
 
 
 template <UInt ORDER, UInt mydim, UInt ndim>
-class MeshHandlerCore{
+class MeshHandler{
 static_assert(ORDER==1 || ORDER==2,
   "ERROR: Only first and second order case implemented for now; see mesh.h");
 public:
-  // Note: how_many_nodes function is defined in mesh_objects.h
+  // Note: how_many_nodes constexpr function is defined in mesh_objects.h
 	using meshElement=Element<how_many_nodes(ORDER,mydim),mydim,ndim>;
 	//! A constructor.
 		/*!
@@ -20,14 +20,12 @@ public:
 			* triangulation is already available)
 		*/
 
-	MeshHandlerCore(Real* points, UInt* sides, UInt* elements, UInt* neighbors, UInt num_nodes, UInt num_sides, UInt num_elements):
+	MeshHandler(Real* points, UInt* sides, UInt* elements, UInt* neighbors, UInt num_nodes, UInt num_sides, UInt num_elements):
 			points_(points), sides_(sides), elements_(elements), neighbors_(neighbors), num_nodes_(num_nodes), num_sides_(num_sides), num_elements_(num_elements) {};
 
 	#ifdef R_VERSION_
-	MeshHandlerCore(SEXP Rmesh);
+	MeshHandler(SEXP Rmesh);
 	#endif
-
-	virtual ~MeshHandlerCore()=0;
 
 	//! A normal member returning an unsigned integer value.
 		/*!
@@ -47,6 +45,8 @@ public:
 			faces for mydim=3) in the mesh
 		*/
 	UInt num_sides() const {return num_sides_;}
+  UInt num_edges() const {return num_sides_;}
+  UInt num_faces() const {return num_sides_;}
 
 	//! A normal member returning a n-dimensional Point
 		/*!
@@ -84,8 +84,25 @@ public:
 		*/
 	meshElement findLocationNaive(const Point<ndim>&) const;
 
+  //! A normal member returning the element on which a point is located
+    /*!
+    * This method implements a Visibility Walk Algorithm (further details in: Walking in a triangulation, Devillers et al)
+    * \param point the point we want to locate
+    * \param starting_elements a vector of points that specifies the poposed starting
+    * points for the walking algorithm
+    \return The element that contains the point
+    */
+  // This method is not implemented for manifold data
+  // We make sure that it is not used for manifold data at compile time using enable_if
+  template <UInt m=mydim, UInt n=ndim>
+  typename std::enable_if<n==m && n==ndim && m==mydim, meshElement>::type findLocationWalking(const Point<ndim>&, const meshElement&) const;
 
-protected:
+  // This method is implemented only for manifold data (same trick using enable_if)
+  // This function projects points onto the mesh
+  template <UInt m=mydim, UInt n=ndim>
+  typename std::enable_if<(m<n) && n==ndim && m==mydim, std::vector<Point<3> > >::type project(const std::vector<Point<3> >&) const;
+
+private:
 	#ifdef R_VERSION_
 	SEXP mesh_;
 	#endif
@@ -96,51 +113,12 @@ protected:
 
 	UInt num_nodes_, num_sides_, num_elements_;
 
-};
-
-// Additional methods for 2D and 3D
-template <UInt ORDER, UInt mydim, UInt ndim>
-class MeshHandler : public MeshHandlerCore<ORDER, mydim, ndim>{
-public:
-  using meshElement=Element<how_many_nodes(ORDER,mydim),mydim,ndim>;
-
-  MeshHandler(Real* points, UInt* sides, UInt* elements, UInt* neighbors, UInt num_nodes, UInt num_sides, UInt num_elements) :
-      MeshHandlerCore<ORDER,mydim,ndim>(points, sides, elements, neighbors, num_nodes, num_sides, num_elements) {}
-
-  //! Additional members returning the number of edges/faces of the element for convenience
-  UInt num_edges() const {return this->num_sides();}
-  UInt num_faces() const {return this->num_sides();}
-
-  //! A normal member returning the element on which a point is located
-    /*!
-    * This method implements a Visibility Walk Algorithm (further details in: Walking in a triangulation, Devillers et al)
-    * \param point the point we want to locate
-    * \param starting_elements a vector of points that specifies the poposed starting
-    * points for the walking algorithm
-    \return The element that contains the point
-    */
-   meshElement findLocationWalking(const Point<ndim>&, const meshElement&) const;
-
-};
-
-// Useful to add some methods peculiar to surface meshes
-template <UInt ORDER>
-class MeshHandler<ORDER,2,3> : public MeshHandlerCore<ORDER,2,3>{
-public:
-  MeshHandler(Real* points, UInt* sides, UInt* elements, UInt* neighbors, UInt num_nodes, UInt num_sides, UInt num_elements) :
-      MeshHandlerCore<ORDER,2,3>(points, sides, elements, neighbors, num_nodes, num_sides, num_elements) {}
-
-  // Additional member returning the number of edges added for convenience
-  UInt num_edges() const {return this->num_sides();}
-
-  // This function projects points onto the mesh
-  std::vector<Point<3> > project(const std::vector<Point<3> >&) const;
-private:
+  // Helper function for project (also defined only for manifold data)
   // This function computes the closest nodes to the given points and returns their index
-  std::vector<UInt> find_closest(const std::vector<Point<3> >&) const;
+  template <UInt m=mydim, UInt n=ndim>
+  typename std::enable_if<(m<n) && n==ndim && m==mydim, std::vector<UInt> >::type find_closest(const std::vector<Point<3> >&) const;
+
 };
-
-
 
 #include "mesh_imp.h"
 
