@@ -60,7 +60,7 @@ Real FiniteElement<Integrator, ORDER, mydim, ndim>::stiff_impl(UInt i, UInt j, U
 }
 
 template <class Integrator, UInt ORDER, UInt mydim, UInt ndim>
-Real FiniteElement<Integrator, ORDER, mydim, ndim>::stiff_anys_impl(UInt i, UInt j, UInt iq, const Eigen::Matrix<Real,2,2>& K){
+Real FiniteElement<Integrator, ORDER, mydim, ndim>::stiff_anys_impl(UInt i, UInt j, UInt iq, const Eigen::Matrix<Real,ndim,ndim>& K){
 	// compute nabla(phi_i) dot K nabla(phi_j) at node iq
 	// Memo: K is symmetric!
 	return invTrJPhiDerMapMaster_.template block<1,ndim>(i,ndim*iq).transpose()*K*invTrJPhiDerMapMaster_.template block<1,ndim>(j,ndim*iq);
@@ -73,9 +73,9 @@ Real FiniteElement<Integrator, ORDER, mydim, ndim>::mass_impl(UInt i, UInt j, UI
 }
 
 template <class Integrator, UInt ORDER, UInt mydim, UInt ndim>
-Real FiniteElement<Integrator, ORDER, mydim, ndim>::grad_impl(UInt i, UInt j, UInt iq){
+Real FiniteElement<Integrator, ORDER, mydim, ndim>::grad_impl(UInt i, UInt j, UInt iq, UInt ic){
 	// compute phi_i x nabla(phi_j) at node iq
-	return phiMapMaster_(i,iq)*invTrJPhiDerMapMaster_.template block<1,ndim>(j,ndim*iq);
+	return phiMapMaster_(i,iq)*invTrJPhiDerMapMaster_(j,ndim*iq+ic);
 }
 
 

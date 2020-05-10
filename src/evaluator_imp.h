@@ -107,7 +107,7 @@ void Evaluator<ORDER, 2, 2>::integrate(UInt** incidenceMatrix, UInt nRegions, UI
 	std::vector<Real> Delta(nRegions, 0);
 	std::vector<Real> integral(nRegions, 0);
 	static constexpr UInt NNodes = 3*ORDER;
-	Element<Nodes, 2, 2> current_element;
+	Element<NNodes, 2, 2> current_element;
 
 	for (int region=0; region<nRegions; ++region)
 	{
@@ -133,7 +133,7 @@ void Evaluator<ORDER, 2, 3>::integrate(UInt** incidenceMatrix, UInt nRegions, UI
 	std::vector<Real> Delta(nRegions, 0);
 	std::vector<Real> integral(nRegions, 0);
 	static constexpr UInt NNodes = 3*ORDER;
-	Element<Nodes, 2, 3> current_element;
+	Element<NNodes, 2, 3> current_element;
 
 	for (int region=0; region<nRegions; ++region)
 	{
@@ -159,7 +159,7 @@ void Evaluator<ORDER, 3, 3>::integrate(UInt** incidenceMatrix, UInt nRegions, UI
 	std::vector<Real> Delta(nRegions, 0);
 	std::vector<Real> integral(nRegions, 0);
 	static constexpr UInt NNodes = 6*ORDER-2;
-	Element<Nodes, 3, 3> current_element;
+	Element<NNodes, 3, 3> current_element;
 
 	for (int region=0; region<nRegions; ++region)
 	{

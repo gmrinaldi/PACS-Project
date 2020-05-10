@@ -8,115 +8,94 @@
 #define PARAM_FUNCTORS_H_
 
 //#include "matrix_assembler.hpp"
-
-class Function
-{
+class Diffusivity{
+  using diffusion_matr = Eigen::Matrix<Real,2,2>;
+	using diff_matr_container = std::vector<diffusion_matr, Eigen::aligned_allocator<diffusion_matr> >;
+	diff_matr_container K_;
 public:
-	//virtual ~Function();
-	virtual Real operator()(UInt globalNodeIndex, UInt ic = 0) const {return 0;}
-};
-
-class Diffusivity
-{
-	std::vector<Eigen::Matrix<Real,2,2>, Eigen::aligned_allocator<Eigen::Matrix<Real,2,2> > > K_;
-public:
-	Diffusivity():
-			K_(){};
-	Diffusivity(const std::vector<Eigen::Matrix<Real,2,2>, Eigen::aligned_allocator<Eigen::Matrix<Real,2,2> > >& K):
-		K_(K){};
+	Diffusivity(const diffusion_matr& K) :
+			K_({K}) {}
+	Diffusivity(const diff_matr_container& K):
+			K_(K){}
 	#ifdef R_VERSION_
-	Diffusivity(SEXP RGlobalVector)
-	{
+	Diffusivity(SEXP RGlobalVector){
 		UInt num_int_nodes = Rf_length(RGlobalVector)/4;
-		K_.resize(num_int_nodes);
-		for(auto l=0; l<num_int_nodes;l++)
-		{
-			for(auto j = 0; j < 2; ++j)
-			{
-				for(auto i = 0; i < 2; ++i)
-					K_[l](i,j) = REAL(RGlobalVector)[l*4 + 2*j + i];
-			}
-		}
+		K_.reserve(num_int_nodes);
+		for(UInt i=0; i<num_int_nodes; ++i)
+				K_.push_back(Eigen::Map<const diffusion_matr>(&REAL(RGlobalVector)[4*i]));
 	}
 	#endif
 
+	const diffusion_matr& operator()() const {return K_[0];}
+	const diffusion_matr& operator()(UInt globalNodeIndex) const {return K_[globalNodeIndex];}
 
-	Eigen::Matrix<Real,2,2> operator()(UInt globalNodeIndex, UInt ic1 = 0) const
-	{
-		return K_[globalNodeIndex];
-	}
+	diff_matr_container::const_iterator begin() const {return K_.begin();}
+	diff_matr_container::const_iterator end() const {return K_.end();}
 };
 
-class Advection : public virtual Function
-{
-	std::vector<Eigen::Matrix<Real,2,1>, Eigen::aligned_allocator<Eigen::Matrix<Real,2,1> > > beta_;
+class Advection{
+	using advection_vec = Eigen::Matrix<Real,2,1>;
+	using adv_vec_container = std::vector<advection_vec, Eigen::aligned_allocator<advection_vec> >;
+	adv_vec_container beta_;
 public:
-	Advection(const std::vector<Eigen::Matrix<Real,2,1>, Eigen::aligned_allocator<Eigen::Matrix<Real,2,1> > >& beta):
-		beta_(beta){};
+	Advection(const advection_vec& beta):
+		beta_({beta}) {}
+	Advection(const adv_vec_container& beta):
+		beta_(beta){}
 	#ifdef R_VERSION_
-	Advection(SEXP RGlobalVector)
-	{
+	Advection(SEXP RGlobalVector){
 		UInt num_int_nodes = Rf_length(RGlobalVector)/2;
-		beta_.resize(num_int_nodes);
-		for(auto l=0; l<num_int_nodes;l++)
-		{
-			for(auto j = 0; j < 2; ++j)
-			{
-					beta_[l](j) = REAL(RGlobalVector)[l*2 + j];
-			}
-		}
+		beta_.reserve(num_int_nodes);
+		for(UInt i=0; i<num_int_nodes; ++i)
+			beta_.push_back(Eigen::Map<const advection_vec>(&REAL(RGlobalVector)[2*i]);
+
 	}
 	#endif
-	Real operator() (UInt globalNodeIndex, UInt ic = 0) const
-	{
-		return beta_[globalNodeIndex][ic];
-	}
+	const advection_vec& operator()() const {return beta_[0];}
+	const advection_vec& operator()(UInt globalNodeIndex) const {return beta_[globalNodeIndex];}
+
+	adv_vec_container::const_iterator begin() const {return beta_.begin();}
+	adv_vec_container::const_iterator end() const {return beta_.end();}
+
 };
 
-class Reaction : public virtual Function
-{
+class Reaction{
 	std::vector<Real> c_;
 public:
-	Reaction(const std::vector<Real>& c, UInt ic = 0):
-		c_(c){};
+	Reaction(const Real &c)
+		c_({c}) {}
+	Reaction(const std::vector<Real>& c):
+		c_(c) {}
 #ifdef R_VERSION_
-	Reaction(SEXP RGlobalVector)
-	{
+	Reaction(SEXP RGlobalVector){
 		UInt num_int_nodes = Rf_length(RGlobalVector);
-		c_.resize(num_int_nodes);
-		for(auto l=0; l<num_int_nodes;l++)
-		{
-					c_[l] = REAL(RGlobalVector)[l];
-		}
+		c_.reserve(num_int_nodes);
+		for(UInt i=0; i<num_int_nodes; ++i)
+			c_.push_back(REAL(RGlobalVector)[i]);
 	}
 	#endif
-	Real operator()(UInt globalNodeIndex, UInt ic = 0) const
-	{
-		return c_[globalNodeIndex];
-	}
+	const Real& operator()() const {return c_[0];}
+	const Real& operator()(UInt globalNodeIndex) const {return c_[globalNodeIndex];}
+
+	std::vector<Real>::const_iterator begin() const {return c_.begin();}
+	std::vector<Real>::const_iterator end() const {return c_.end();}
+
 };
 
-class ForcingTerm : public virtual Function
-{
+class ForcingTerm{
 	std::vector<Real> u_;
 public:
-	ForcingTerm(const std::vector<Real>& u, UInt ic = 0):
-		u_(u){};
+	ForcingTerm(const std::vector<Real>& u):
+		u_(u) {}
 	#ifdef R_VERSION_
-	ForcingTerm(SEXP RGlobalVector)
-	{
+	ForcingTerm(SEXP RGlobalVector){
 		UInt num_int_nodes = Rf_length(RGlobalVector);
-		u_.resize(num_int_nodes);
-		for(auto l=0; l<num_int_nodes;l++)
-		{
-					u_[l] = REAL(RGlobalVector)[l];
-		}
+		u_.reserve(num_int_nodes);
+		for(UInt i=0; i<num_int_nodes; ++i)
+			u_.push_back(REAL(RGlobalVector)[i]);
 	}
 	#endif
-	Real operator()(UInt globalNodeIndex, UInt ic = 0) const
-	{
-		return u_[globalNodeIndex];
-	}
+	Real operator()(UInt globalNodeIndex) const {return u_[globalNodeIndex];}
 };
 
 

@@ -25,7 +25,7 @@ inline Point<ndim> MeshHandler<ORDER,mydim,ndim>::getPoint(Id id) const
 }
 
 template <UInt ORDER, UInt mydim, UInt ndim>
-MeshHandler<ORDER,mydim,ndim>::meshElement MeshHandler<ORDER,mydim,ndim>::getElement(Id id) const
+typename MeshHandler<ORDER,mydim,ndim>::meshElement MeshHandler<ORDER,mydim,ndim>::getElement(Id id) const
 {
 	typename meshElement::elementPoints elPoints;
 	for (int i=0; i<how_many_nodes(ORDER,mydim); ++i)
@@ -34,7 +34,7 @@ MeshHandler<ORDER,mydim,ndim>::meshElement MeshHandler<ORDER,mydim,ndim>::getEle
 }
 
 template <UInt ORDER, UInt mydim, UInt ndim>
-MeshHandler<ORDER,mydim,ndim>::meshElement MeshHandler<ORDER,mydim,ndim>::getNeighbors(Id id_element, UInt number) const
+typename MeshHandler<ORDER,mydim,ndim>::meshElement MeshHandler<ORDER,mydim,ndim>::getNeighbors(Id id_element, UInt number) const
 {
 	Id id_neighbor{neighbors_[id_element + number * num_elements_]};
 	//return empty element if "neighbor" not present (out of boundary!)
@@ -42,7 +42,7 @@ MeshHandler<ORDER,mydim,ndim>::meshElement MeshHandler<ORDER,mydim,ndim>::getNei
 }
 
 template <UInt ORDER, UInt mydim, UInt ndim>
-MeshHandler<ORDER,mydim,ndim>::meshElement MeshHandler<ORDER,mydim,ndim>::findLocationNaive(const Point<ndim>& point) const
+typename MeshHandler<ORDER,mydim,ndim>::meshElement MeshHandler<ORDER,mydim,ndim>::findLocationNaive(const Point<ndim>& point) const
 {
 	for(Id id=0; id < num_elements_; ++id){
 		meshElement current_element{this->getElement(id)};
@@ -56,7 +56,7 @@ MeshHandler<ORDER,mydim,ndim>::meshElement MeshHandler<ORDER,mydim,ndim>::findLo
 //Starting triangles usually n^(1/3) points
 template <UInt ORDER, UInt mydim, UInt ndim>
 template <UInt m, UInt n>																													//vvvvvvvvv actual return type
-typename std::enable_if<n==m && n==ndim && m==mydim, MeshHandler<ORDER,mydim,ndim>::meshElement>::type
+typename std::enable_if<n==m && n==ndim && m==mydim, typename MeshHandler<ORDER,mydim,ndim>::meshElement>::type
 MeshHandler<ORDER,mydim,ndim>::findLocationWalking(const Point<ndim>& point, const Element<how_many_nodes(ORDER,mydim),mydim,ndim>& starting_element) const
 {
 	meshElement current_element{starting_element};

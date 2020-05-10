@@ -33,45 +33,6 @@ struct Stiff{
     return currentfe_.stiff_impl(i,j,iq);
 	}
 
-
-};
-
-template <class Type>
-class StiffAnys{
-};
-
-template <>
-class StiffAnys<Eigen::Matrix<Real,2,2>>{
-private:
-  const Eigen::Matrix<Real,2,2>& K_;
-public:
-  //! A constructor.
-
-  StiffAnys(const Eigen::Matrix<Real,2,2>& K): K_(K){};
-
-  //! A definition of operator () taking four arguments.
-  /*!
-  * Evaluates the product of: the derivative of basis(i) with respect to coordinate ic1 and the derivative of basis(j) with respect
-  * to coordinate ic2 ,on current finite elemente.
-  * \param i is an unsigned int, current finite element local index
-  * \param j is an unsigned int, current finite element local index
-  * \param ic1 is an unsigned int, the variable respect whom the derivative is take: ic1=0 abscissa, ic1=1 ordinata
-  * \param ic1 is an unsigned int, the variable respect whom the derivative is take: ic1=0 abscissa, ic1=1 ordinata
-  * returns a double.
-  */
-
-  template<class Integrator, UInt ORDER>
-  inline Real operator() (FiniteElement<Integrator, ORDER,2,2>& currentfe_, UInt i, UInt j, UInt iq, UInt ic = 0)
-  {
-    return currentfe_.stiff_anys_impl(i,j,iq,K_);
-  }
-
-  template<class Integrator, UInt ORDER>
-  inline Real operator() (FiniteElement<Integrator, ORDER,2,3>& currentfe_, UInt i, UInt j, UInt iq, UInt ic = 0){return 0;}
-
-  template<class Integrator, UInt ORDER>
-  inline Real operator() (FiniteElement<Integrator, ORDER,3,3>& currentfe_, UInt i, UInt j, UInt iq, UInt ic = 0){return 0;}
-
 };
 
 template <>
@@ -164,7 +125,7 @@ public:
   template<class Integrator, UInt ORDER>
   inline Real operator() (FiniteElement<Integrator,ORDER,2,2>& currentfe_, UInt i, UInt j, UInt iq, UInt ic = 0)
   {
-    return currentfe_.grad_impl(i,j,iq);
+    return currentfe_.grad_impl(i,j,iq,ic);
   }
 
 

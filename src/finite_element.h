@@ -44,9 +44,9 @@ public:
 
 	const Point<ndim>& operator[](UInt i) const {return t_[i];}
 	// Both Area and Volume getter added for convenience
-	Real getMeasure() const {t_.getMeasure();}
-	Real getArea() const {t_.getMeasure();}
-	Real getVolume() const {t_.getMeasure();}
+	Real getMeasure() const {return t_.getMeasure();}
+	Real getArea() const {return t_.getMeasure();}
+	Real getVolume() const {return t_.getMeasure();}
 
 	Real getId() const {return t_.getId();}
 
@@ -60,9 +60,9 @@ public:
 
 	// These function are used in matrix_assembler.h
 	Real stiff_impl(UInt i, UInt j, UInt iq);
-	Real stiff_anys_impl(UInt i, UInt j, UInt iq);
+	Real stiff_anys_impl(UInt i, UInt j, UInt iq, const Eigen::Matrix<Real, ndim, ndim>&);
 	Real mass_impl(UInt i, UInt j, UInt iq);
-	Real grad_impl(UInt i, UInt j, UInt iq);
+	Real grad_impl(UInt i, UInt j, UInt iq, UInt ic);
 
 };
 
