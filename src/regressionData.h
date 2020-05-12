@@ -167,7 +167,7 @@ class  RegressionDataElliptic:public RegressionData
 class RegressionDataEllipticSpaceVarying:public RegressionData
 {
 	private:
-		Diffusivity K_;
+		Diffusion K_;
 		Advection beta_;
 		Reaction c_;
 		ForcingTerm u_;
@@ -211,7 +211,7 @@ class RegressionDataEllipticSpaceVarying:public RegressionData
 													std::vector<UInt>& bc_indices, std::vector<Real>& bc_values,
 													bool DOF);
 
-		inline Diffusivity const & getK() const {return K_;}
+		inline Diffusion const & getK() const {return K_;}
 		inline Advection const & getBeta() const {return beta_;}
 		inline Reaction const & getC() const {return c_;}
 		inline ForcingTerm const & getU() const {return u_;}

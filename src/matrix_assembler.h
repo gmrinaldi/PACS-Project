@@ -6,78 +6,42 @@
 #include "finite_element.h"
 #include "mesh_objects.h"
 #include "param_functors.h"
-//! A Stiff class: a class for the stiffness operator.
+#include "mesh.h"
 
+//! A Stiff class: a class for the stiffness operator.
 struct Stiff{
 	//! A definition of operator () taking three arguments.
     /*!
      * Evaluates the stiffness operator (i,j) of the current planar finite element.
      * \param currentfe_ is an object of class FiniteElement<Integrator, ORDER,2,2>, current planar finite element
-     * \param i is an unsigned int, current finite element local index
-     * \param j is an unsigned int, current finite element local index
-     * returns a double.
+     * returns a matrix!.
      */
-	template<class Integrator, UInt ORDER>
-	inline Real operator() (FiniteElement<Integrator, ORDER,2,2>& currentfe_, UInt i, UInt j, UInt iq, UInt ic = 0){
-    return currentfe_.stiff_impl(i,j,iq);
+	template<class Integrator, UInt ORDER, UInt mydim, UInt ndim>
+	typename FiniteElement<Integrator, ORDER, mydim, ndim>::return_t
+  operator() (FiniteElement<Integrator,ORDER,mydim,ndim>& currentfe_, UInt iq){
+	  return currentfe_.stiff_impl(iq);
 	}
-
-  // Keep them for the moment to allow function overloading
-  template<class Integrator, UInt ORDER>
-  inline Real operator() (FiniteElement<Integrator, ORDER,2,3>& currentfe_, UInt i, UInt j, UInt iq, UInt ic = 0){
-    return currentfe_.stiff_impl(i,j,iq);
-  }
-
-  template<class Integrator, UInt ORDER>
-	inline Real operator() (FiniteElement<Integrator, ORDER,3,3>& currentfe_, UInt i, UInt j, UInt iq, UInt ic = 0){
-    return currentfe_.stiff_impl(i,j,iq);
-	}
-
 };
 
-template <>
-class StiffAnys<Diffusivity>{
-private:
+struct Grad{
+	//! A definition of operator () taking three arguments.
+	/*!
+	* Evaluates the component ic of the vGrad operator (i,j) on the current finite elemente.
+	* \param i is an unsigned int, current finite element local index
+	* \param j is an unsigned int, current finite element local index
+	* \param ic is an unsigned int, vGrad component to be evaluated
+	* returns a double.
+	*/
 
-  const Diffusivity& K_;
-public:
-  //! A constructor.
-
-  StiffAnys(const Diffusivity& K): K_(K){};
-
-
-  //! A definition of operator () taking four arguments.
-  /*!
-  * Evaluates the product of: the derivative of basis(i) with respect to coordinate ic1 and the derivative of basis(j) with respect
-  * to coordinate ic2 ,on current finite elemente.
-  * \param i is an unsigned int, current finite element local index
-  * \param j is an unsigned int, current finite element local index
-  * \param ic1 is an unsigned int, the variable respect whom the derivative is take: ic1=0 abscissa, ic1=1 ordinata
-  * \param ic1 is an unsigned int, the variable respect whom the derivative is take: ic1=0 abscissa, ic1=1 ordinata
-  * returns a double.
-  */
-
-  template <class Integrator, UInt ORDER>
-  inline Real operator() (FiniteElement<Integrator, ORDER,2,2>& currentfe_, UInt i, UInt j, UInt iq, UInt ic = 0)
-  {
-    UInt globalIndex = currentfe_.getGlobalIndex(iq);
-    return currentfe_.stiff_anys_impl(i,j,iq,K_(globalIndex));
-  }
-
-  template <class Integrator, UInt ORDER>
-  inline Real operator() (FiniteElement<Integrator, ORDER,2,3>& currentfe_, UInt i, UInt j, UInt iq, UInt ic = 0){return 0;}
-
-  template <class Integrator, UInt ORDER>
-  inline Real operator() (FiniteElement<Integrator, ORDER,3,3>& currentfe_, UInt i, UInt j, UInt iq, UInt ic = 0){return 0;}
-
+	template<class Integrator, UInt ORDER, UInt mydim, UInt ndim>
+	typename FiniteElement<Integrator, ORDER, mydim, ndim>::return_t
+	operator() (FiniteElement<Integrator,ORDER,mydim,ndim>& currentfe_, UInt iq){
+		return currentfe_.grad_impl(iq, Eigen::Matrix<Real,ndim,1>::Unit(0));
+	}
 };
 
 //! A Mass class: a class for the mass operator.
-class Mass{
-private:
-
-public:
-
+struct Mass{
   //! A definition of operator () taking three arguments.
   /*!
   * Evaluates the mass operator (i,j) of the current finite element.
@@ -86,61 +50,98 @@ public:
   * \param j is an unsigned int, current finite element local index
   * returns a double.
   */
-  template <class Integrator ,UInt ORDER>
-  inline Real operator() (FiniteElement<Integrator, ORDER, 2, 2>& currentfe_, UInt i, UInt j, UInt iq, UInt ic = 0)
-  {
-    return currentfe_.mass_impl(i,j,iq);
-  }
 
-  // Keep them for the moment to allow for function overloading
-  template <class Integrator ,UInt ORDER>
-  inline Real operator() (FiniteElement<Integrator, ORDER, 2, 3>& currentfe_, UInt i, UInt j, UInt iq, UInt ic = 0)
-  {
-    return currentfe_.mass_impl(i,j,iq);
-  }
-
-  template <class Integrator ,UInt ORDER>
-  inline Real operator() (FiniteElement<Integrator, ORDER, 3, 3>& currentfe_, UInt i, UInt j, UInt iq, UInt ic = 0)
-  {
-    return currentfe_.mass_impl(i,j,iq);
-  }
-
-
+	template<class Integrator, UInt ORDER, UInt mydim, UInt ndim>
+	typename FiniteElement<Integrator, ORDER, mydim, ndim>::return_t
+  operator() (FiniteElement<Integrator,ORDER,mydim,ndim>& currentfe_, UInt iq){
+	  return currentfe_.mass_impl(iq);
+	}
 };
 
-//! A vGrad class: a class for the the vectorial Gradient operator.
+template <class T>
+class StiffAnys{
 
-class Grad{
-private:
+	template<UInt ndim>
+	using is_T_SV = typename std::enable_if<std::is_same<T, Diffusion<ndim, true> >::value, bool>::type;
+	template<UInt ndim>
+	using is_T_not_SV = typename std::enable_if<std::is_same<T, Diffusion<ndim, false> >::value, bool>::type;
+
+	template <typename A>
+	friend class EOExpr;
+
+	//Note: the constructor is private because only EOExpr<Stiff> will need to use this type
+	StiffAnys(const T& K): K_(K){};
+
+	const T& K_;
 
 public:
-  //! A definition of operator () taking three arguments.
-  /*!
-  * Evaluates the component ic of the vGrad operator (i,j) on the current finite elemente.
-  * \param i is an unsigned int, current finite element local index
-  * \param j is an unsigned int, current finite element local index
-  * \param ic is an unsigned int, vGrad component to be evaluated
-  * returns a double.
-  */
-  template<class Integrator, UInt ORDER>
-  inline Real operator() (FiniteElement<Integrator,ORDER,2,2>& currentfe_, UInt i, UInt j, UInt iq, UInt ic = 0)
-  {
-    return currentfe_.grad_impl(i,j,iq,ic);
-  }
+	//! A definition of operator () taking four arguments.
+	/*!
+	* Evaluates the product of: the derivative of basis(i) with respect to coordinate ic1 and the derivative of basis(j) with respect
+	* to coordinate ic2 ,on current finite elemente.
+	* \param i is an unsigned int, current finite element local index
+	* \param j is an unsigned int, current finite element local index
+	* \param ic1 is an unsigned int, the variable respect whom the derivative is take: ic1=0 abscissa, ic1=1 ordinata
+	* \param ic1 is an unsigned int, the variable respect whom the derivative is take: ic1=0 abscissa, ic1=1 ordinata
+	* returns a double.
+	*/
 
+	template<class Integrator, UInt ORDER, UInt mydim, UInt ndim, is_T_not_SV<ndim> = true>
+	typename FiniteElement<Integrator, ORDER, mydim, ndim>::return_t
+	operator() (FiniteElement<Integrator,ORDER,mydim,ndim>& currentfe_, UInt iq){
+		return currentfe_.stiff_anys_impl(iq, K_());
+	}
 
-  // AGGIUNGERE NUOVI METODI PER MESH SUPERFICIALI:
-  //E' UNA SORTA DI DUMMY. DA IMPLEMENTARE SERIAMENTE PER ndim=3
-
-  template<class Integrator, UInt ORDER>
-  inline Real operator() (FiniteElement<Integrator, ORDER,2,3>& currentfe_, UInt i, UInt j, UInt iq, UInt ic = 0){return 0;};
-
-  template<class Integrator, UInt ORDER>
-  inline Real operator() (FiniteElement<Integrator, ORDER,3,3>& currentfe_, UInt i, UInt j, UInt iq, UInt ic = 0){return 0;};
-
+	template<class Integrator, UInt ORDER, UInt mydim, UInt ndim, is_T_SV<ndim> = true>
+	typename FiniteElement<Integrator, ORDER, mydim, ndim>::return_t
+	operator() (FiniteElement<Integrator,ORDER,mydim,ndim>& currentfe_, UInt iq){
+		UInt globalIndex = currentfe_.getGlobalIndex(iq);
+		return currentfe_.stiff_anys_impl(iq, K_(globalIndex));
+	}
 
 };
 
+//! A bGrad class: a class for Gradient operator.with given b
+template <class T>
+class bGrad{
+	template<UInt ndim>
+	using is_T_SV = typename std::enable_if<std::is_same<T, Advection<ndim, true> >::value, bool>::type;
+	template<UInt ndim>
+	using is_T_not_SV = typename std::enable_if<std::is_same<T, Advection<ndim, false> >::value, bool>::type;
+
+	template <typename A>
+	friend class EOExpr;
+
+	//Note: the constructor is private because only EOExpr<Grad> will need to use this type
+
+	bGrad(const T& b): b_(b){};
+
+	const T& b_;
+
+public:
+	//! A definition of operator () taking three arguments.
+	/*!
+	* Evaluates the component ic of the vGrad operator (i,j) on the current finite elemente.
+	* \param i is an unsigned int, current finite element local index
+	* \param j is an unsigned int, current finite element local index
+	* \param ic is an unsigned int, vGrad component to be evaluated
+	* returns a double.
+	*/
+
+	template<class Integrator, UInt ORDER, UInt mydim, UInt ndim, is_T_not_SV<ndim> = true>
+	typename FiniteElement<Integrator, ORDER, mydim, ndim>::return_t
+	operator() (FiniteElement<Integrator,ORDER,mydim,ndim>& currentfe_, UInt iq){
+		return currentfe_.grad_impl(iq,b_());
+	}
+
+	template<class Integrator, UInt ORDER, UInt mydim, UInt ndim, is_T_SV<ndim> = true>
+	typename FiniteElement<Integrator, ORDER, mydim, ndim>::return_t
+	operator() (FiniteElement<Integrator,ORDER,mydim,ndim>& currentfe_, UInt iq){
+		UInt globalIndex = currentfe_.getGlobalIndex(iq);
+		return currentfe_.grad_impl(iq,b_(globalIndex));
+	}
+
+};
 
 //generic template class wrapper
 //! A ETWrapper class: Expression Template Wrapper.
@@ -154,74 +155,78 @@ public:
 
 template<typename A>
 class EOExpr{
-	private:
 	  //! "A" is a generic type
 	  A a_;
-	public:
+public:
 	//! A constructor.
 	/*!
 	 * \param object is a constant reference to a generic operator.
 	 */
-	  EOExpr(const A& a):a_(a){};
-	 //! A definition of operator () which takes two arguments.
-     /*!
-     * Masks the behaviour of the correspondent operator in the above classes.
-     * \param i is an unsigned int
-     * \param j is an unsigned int
-     * returns a P variable.
-     */
-	  //P operator() (UInt i, UInt j) {return a_(i,j);}
-	 //! A definition of operator () which takes three arguments.
-     /*!
-     * Masks the behaviour of the correspondent operator in the above classes.
-     * \param i is an unsigned int
-     * \param j is an unsigned int
-     * \param ic is an unsigned int
-     * returns a P variable.
-     */
-	  EOExpr<StiffAnys<Eigen::Matrix<Real,2,2>> >  operator[] (const Eigen::Matrix<Real,2,2>& K)
-      {
-		  typedef EOExpr<StiffAnys<Eigen::Matrix<Real,2,2> > > ExprT;
-		  StiffAnys<Eigen::Matrix<Real,2,2> > anys(K);
-    	  return ExprT(anys);
-    	  //StiffAnys<Eigen::Matrix<Real,2,2> > a(K);
-      }
+	 EOExpr(const A& a):a_(a){};
 
-	  EOExpr<StiffAnys<Diffusivity> > operator[] (const Diffusivity& K)
-	  {
-		  typedef EOExpr<StiffAnys<Diffusivity> > ExprT;
-		  StiffAnys<Diffusivity> anys(K);
-		  return ExprT(anys);
-		  //return EOExpr<P,A>(A(K));
-	  }
+	 template<typename Integrator, UInt ORDER,UInt mydim, UInt ndim>
+	 typename FiniteElement<Integrator, ORDER, mydim, ndim>::return_t
+ 	 operator() (FiniteElement<Integrator, ORDER,mydim,ndim>& currentfe_, UInt iq){
+		 return a_(currentfe_, iq);
+	 }
+};
 
-	  template<typename Integrator, UInt ORDER,UInt mydim, UInt ndim>
-      Real operator() (FiniteElement<Integrator, ORDER,mydim,ndim>& currentfe_, UInt i, UInt j, UInt iq, UInt ic = 0)
-      {
-          return a_(currentfe_, i,j,iq,ic);
-      }
+template<>
+class EOExpr<Stiff>{
 
-	 //! A definition of operator () which takes four arguments.
-     /*!
-     * Masks the behaviour of the correspondent operator in the above classes.
-     * \param i is an unsigned int
-     * \param j is an unsigned int
-     * \param ic is an unsigned int
-     * returns a P variable.
-     */
-	  //P operator() (UInt i, UInt j, UInt ic1, UInt ic2) { return a_(i,j,ic1,ic2);}
-	};
+	Stiff a_;
+
+public:
+
+	EOExpr(const Stiff& a):a_(a){};
+
+	// The subscript operator is used to convert from Stiff to StiffAnys
+	template<UInt ndim, bool is_SV>
+	EOExpr<StiffAnys<Diffusion<ndim,is_SV> > >  operator[] (const Diffusion<ndim, is_SV>& K){
+		typedef EOExpr<StiffAnys<Diffusion<ndim,is_SV> > > ExprT;
+		StiffAnys<Diffusion<ndim,is_SV> > anys(K);
+		return ExprT(anys);
+	}
+
+	template<typename Integrator, UInt ORDER,UInt mydim, UInt ndim>
+	typename FiniteElement<Integrator, ORDER, mydim, ndim>::return_t
+	operator() (FiniteElement<Integrator, ORDER,mydim,ndim>& currentfe_, UInt iq){
+		return a_(currentfe_, iq);
+	}
+};
+
+template<>
+class EOExpr<Grad>{
+private:
+
+	Grad a_;
+
+public:
+	//! A constructor.
+	/*!
+	* \param object is a constant reference to a generic operator.
+	*/
+	EOExpr(const Grad& a):a_(a){};
+
+	// The subscript operator is used to convert from Grad to bGrad
+	template<UInt ndim, bool is_SV>
+	EOExpr<bGrad<Advection<ndim, is_SV> > > operator[] (const Advection<ndim, is_SV>& b){
+		typedef EOExpr<bGrad<Advection<ndim, is_SV> > > ExprT;
+		bGrad<Advection<ndim, is_SV> > bgrad(b);
+		return ExprT(bgrad);
+	}
+
+	template<typename Integrator, UInt ORDER,UInt mydim, UInt ndim>
+	typename FiniteElement<Integrator, ORDER, mydim, ndim>::return_t
+ 	operator() (FiniteElement<Integrator, ORDER,mydim,ndim>& currentfe_, UInt iq){
+		return a_(currentfe_, iq);
+	}
+};
+
 
 //composition of two wrappers (operator)
-//! A ETWBinOp class: Expression Template Wrapper Binary Operation
-/*!
- * Class that implements an abstract binary operation defined by Op between two ETWrappers, following:
- * "Expression Templates Implementation of Continuous and DIscontinous Galerkin Methods"
- * D.A. Di Pietro, A. Veneziani
- */
 template<typename A, typename B, typename Op>
 class EOBinOp{
-	private:
 		//! "A" is a generic type.
 		/*!
 		 * Stores the first operand.
@@ -232,13 +237,13 @@ class EOBinOp{
 		 * Stores the second operand.
 		 */
 		B b_;
-	public:
+public:
 	//! A constructor.
 	/*!
 	 * \param a is a constant reference to a generic type.
 	 * \param b is a constant reference to a generic type.
 	 */
-		EOBinOp(const A& a ,const B& b): a_(a),b_(b){};
+		EOBinOp(const A& a ,const B& b): a_(a), b_(b){};
 	 //! A definition of operator () taking two arguments.
 	 /*!
      * \param i is an unsigned int
@@ -247,40 +252,38 @@ class EOBinOp{
      * returns a type P variable
 	 */
 		template<typename Integrator, UInt ORDER,UInt mydim,UInt ndim>
-	  Real operator () (FiniteElement<Integrator, ORDER,mydim,ndim>& currentfe_, UInt i, UInt j, UInt iq, UInt ic = 0)
-	  {
-		  return Op::apply(a_(currentfe_,i,j, iq, ic),b_(currentfe_, i,j, iq, ic));
+		typename FiniteElement<Integrator, ORDER, mydim, ndim>::return_t
+ 		operator () (FiniteElement<Integrator, ORDER,mydim,ndim>& currentfe_, UInt iq){
+		  return Op::apply(a_(currentfe_, iq), b_(currentfe_, iq));
 	  }
 	};
 
 template<class B, class Op>
-class EOBinOp<Real, B, Op>
-{
+class EOBinOp<Real, B, Op>{
 	Real M_a;
 	B M_b;
 public:
 	EOBinOp(Real a, const B& b):M_a(a),M_b(b) {};
 
-	template<typename Integrator, UInt ORDER,UInt mydim, UInt ndim>
-	inline Real operator()(FiniteElement<Integrator, ORDER,mydim,ndim>& currentfe_, int i, int j, int iq, int ic = 0)
-	{
-		return Op::apply(M_a,M_b(currentfe_, i, j, iq, ic));
+	template<typename Integrator, UInt ORDER, UInt mydim, UInt ndim>
+	typename FiniteElement<Integrator, ORDER, mydim, ndim>::return_t
+ 	operator()(FiniteElement<Integrator, ORDER,mydim,ndim>& currentfe_, int iq){
+		return Op::apply(M_a, M_b(currentfe_, iq));
 	}
 };
 
 template<class B, class Op>
-class EOBinOp<Function, B, Op>
-{
-	const Function& M_a;
+class EOBinOp<Reaction, B, Op>{
+	const Reaction& M_a;
 	B M_b;
 public:
-	EOBinOp(const Function& a, const B& b):M_a(a),M_b(b) {};
+	EOBinOp(const Reaction& a, const B& b):M_a(a), M_b(b) {};
 
-	template<typename Integrator, UInt ORDER,UInt mydim, UInt ndim>
-	inline Real operator()(FiniteElement<Integrator, ORDER,mydim,ndim>& currentfe_, int i, int j, int iq, int ic = 0)
-	{
+	template<typename Integrator, UInt ORDER, UInt mydim, UInt ndim>
+	typename FiniteElement<Integrator, ORDER, mydim, ndim>::return_t
+ 	operator()(FiniteElement<Integrator, ORDER, mydim, ndim>& currentfe_, int iq){
 		UInt globalIndex = currentfe_.getGlobalIndex(iq);
-		return Op::apply(M_a(globalIndex),M_b(currentfe_, i, j, iq, ic));
+		return Op::apply(M_a(globalIndex),M_b(currentfe_, iq));
 	}
 };
 
@@ -292,17 +295,17 @@ public:
  * D.A. Di Pietro, A. Veneziani
  */
 
-class EOAdd{
-	public:
-	//! A constructor.
-	EOAdd(){}
-	//! A stastic inline method taking two arguments.
+struct EOAdd{
+	//! A static inline method taking two arguments.
 	/*!
 	 *The actual addition operation
 	 * \param a is of P type, first addend
 	 * \param b is of P type, second addend
 	 */
-	static inline Real apply(Real a, Real b){ return (a+b); }
+	template<UInt N>
+ 	static Eigen::Matrix<Real,N,N> apply(const Eigen::Matrix<Real,N,N> &a, const Eigen::Matrix<Real,N,N> &b){
+ 		return a+b;
+ 	}
 };
 
 //multiplication by real scalar
@@ -313,76 +316,17 @@ class EOAdd{
  * D.A. Di Pietro, A. Veneziani
  */
 
-class EOMult{
-	public:
-	//! A constructor
-	EOMult(){}
-	 //! A stastic inline method taking two arguments.
+struct EOMult{
+	 //! A static inline method taking two arguments.
 	/*!
 	 * The actual multiplication operation.
 	 * \param a is of P type, first operand
 	 * \param b is a Real, second operand
 	 */
-	  static inline Real apply( Real a, Real b){ return (a*b);}
-	  //not needed since in ETRBinOp I did "Op::apply(a_(i,j),b_)"
-	  //static inline P apply(Real b, const P&a){ return (a*b);}
-	};
-
-//Dot
-template<class A, class B>
-class EODotProd
-{
-	A a_;
-	B b_;
-	public:
-	EODotProd(const A& a, const B& b):a_(a), b_(b) {};
-	template<typename Integrator, UInt ORDER, UInt ndim>
-	inline Real operator()(FiniteElement<Integrator, ORDER,2,ndim>& currentfe_, int i, int j, int iq, int ic = 0)
-	{
-		Real s = 0.;
-		for(ic = 0; ic < 2; ++ic)
-			s += a_(ic) * b_(currentfe_, i, j, iq, ic);
-	return s;
-	}
-
-	template<typename Integrator, UInt ORDER>
-	inline Real operator()(FiniteElement<Integrator, ORDER,3,3>& currentfe_, int i, int j, int iq, int ic = 0)
-	{
-		Real s = 0.;
-		for(ic = 0; ic < 3; ++ic)
-			s += a_(ic) * b_(currentfe_, i, j, iq, ic);
-	return s;
-	}
-};
-
-//Dot
-template<class B>
-class EODotProd<Function, B>
-{
-	const Function& M_a;
-	B M_b;
-	public:
-	EODotProd(const Function& a, const B& b):M_a(a), M_b(b) {};
-	template<typename Integrator, UInt ORDER, UInt ndim>
-	inline Real operator()(FiniteElement<Integrator, ORDER,2,ndim>& currentfe_, int i, int j, int iq, int ic = 0)
-	{
-		Real s = 0.;
-		UInt globalIndex = currentfe_.getGlobalIndex(iq);
-		for(ic = 0; ic < 2; ic++)
-			s += M_a(globalIndex, ic) * M_b(currentfe_, i, j, iq, ic);
-	return s;
-	}
-
-	template<typename Integrator, UInt ORDER>
-	inline Real operator()(FiniteElement<Integrator, ORDER,3,3>& currentfe_, int i, int j, int iq, int ic = 0)
-	{
-		Real s = 0.;
-		UInt globalIndex = currentfe_.getGlobalIndex(iq);
-		for(ic = 0; ic < 3; ic++)
-			s += M_a(globalIndex, ic) * M_b(currentfe_, i, j, iq, ic);
-	return s;
-	}
-
+	 template<UInt N>
+   static Eigen::Matrix<Real,N,N> apply(Real a, const Eigen::Matrix<Real,N,N> &b){
+  		return a*b;
+   }
 };
 
 //operator +
@@ -405,10 +349,10 @@ operator + (const EOExpr<A>&  a, const EOExpr<B>&  b){
 }
 
 template<typename B>
-EOExpr<EOBinOp<Function, EOExpr<B>, EOMult > >
-operator * (const Function&  a, const EOExpr<B>&  b){
+EOExpr<EOBinOp<Reaction, EOExpr<B>, EOMult > >
+operator * (const Reaction&  a, const EOExpr<B>&  b){
 
-	  typedef EOBinOp<Function, EOExpr<B>, EOMult> ExprT;
+	  typedef EOBinOp<Reaction, EOExpr<B>, EOMult> ExprT;
 	  return EOExpr<ExprT> (ExprT(a,b));
 }
 
@@ -419,31 +363,6 @@ operator * (Real a, const EOExpr<B>&  b){
 	  typedef EOBinOp<Real, EOExpr<B>, EOMult > ExprT;
 	  return EOExpr<ExprT> (ExprT(a,b));
 }
-
-template<typename B>
-EOExpr<EODotProd<Eigen::Matrix<Real,2,1>, EOExpr<B> > >
-dot(const Eigen::Matrix<Real,2,1>& a, const EOExpr<B>&  b){
-
-	  typedef EODotProd<Eigen::Matrix<Real,2,1>, EOExpr<B> > ExprT;
-	  return EOExpr<ExprT> (ExprT(a,b));
-}
-
-template<typename B>
-EOExpr<EODotProd<Eigen::Matrix<Real,3,1>, EOExpr<B> > >
-dot(const Eigen::Matrix<Real,3,1>& a, const EOExpr<B>&  b){
-
-	  typedef EODotProd<Eigen::Matrix<Real,3,1>, EOExpr<B> > ExprT;
-	  return EOExpr<ExprT> (ExprT(a,b));
-}
-
-template<typename B>
-EOExpr<EODotProd<Function, EOExpr<B> > >
-dot(const Function& a, const EOExpr<B>&  b){
-
-	  typedef EODotProd<Function, EOExpr<B> > ExprT;
-	  return EOExpr<ExprT> (ExprT(a,b));
-}
-
 
 
 //!A Assmbler class: discretize a generic differential operator in a sparse matrix
@@ -458,36 +377,12 @@ struct Assembler{
    */
 
   //Return triplets vector
-  template<UInt ORDER, typename Integrator, typename A>
-  static void operKernel(EOExpr<A> oper,const MeshHandler<ORDER,2,2>& mesh,
-  	                     FiniteElement<Integrator, ORDER,2,2>& fe, SpMat& OpMat);
+  template<UInt ORDER, typename Integrator, UInt mydim, UInt ndim, typename A>
+  static void operKernel(EOExpr<A> oper,const MeshHandler<ORDER,mydim,ndim>& mesh,
+  	                     FiniteElement<Integrator, ORDER,mydim,ndim>& fe, SpMat& OpMat);
 
-  template<UInt ORDER, typename Integrator>
-  static void forcingTerm(const MeshHandler<ORDER,2,2>& mesh, FiniteElement<Integrator, ORDER,2,2>& fe, const ForcingTerm& u, VectorXr& forcingTerm);
-
-  //! A template member taking three arguments: discretize differential operator
-  /*!
-   * \param oper is a template expression : the differential operator to be discretized.
-   * \param mesh is const reference to a MeshHandler<ORDER,2,3>: the mesh where we want to discretize the operator.
-   * \param fe is a const reference to a FiniteElement
-   * stores the discretization in SPoper_mat_
-   */
-
-  template<UInt ORDER, typename Integrator, typename A>
-  static void operKernel(EOExpr<A> oper,const MeshHandler<ORDER,2,3>& mesh,
-  	                     FiniteElement<Integrator, ORDER,2,3>& fe, SpMat& OpMat);
-
-  template<UInt ORDER, typename Integrator>
-  static void forcingTerm(const MeshHandler<ORDER,2,3>& mesh, FiniteElement<Integrator, ORDER,2,3>& fe, const ForcingTerm& u, VectorXr& forcingTerm);
-
-
-  template<UInt ORDER, typename Integrator, typename A>
-  static void operKernel(EOExpr<A> oper,const MeshHandler<ORDER,3,3>& mesh,
-  	                     FiniteElement<Integrator, ORDER,3,3>& fe, SpMat& OpMat);
-
-  template<UInt ORDER, typename Integrator>
-  static void forcingTerm(const MeshHandler<ORDER,3,3>& mesh, FiniteElement<Integrator, ORDER,3,3>& fe, const ForcingTerm& u, VectorXr& forcingTerm);
-
+  template<UInt ORDER, typename Integrator, UInt mydim, UInt ndim>
+  static void forcingTerm(const MeshHandler<ORDER,mydim,ndim>& mesh, FiniteElement<Integrator, ORDER,mydim,ndim>& fe, const ForcingTerm& u, VectorXr& forcingTerm);
 
 };
 

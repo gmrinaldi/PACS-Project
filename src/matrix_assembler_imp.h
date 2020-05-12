@@ -2,246 +2,71 @@
 #define MATRIX_ASSEMBLER_IMP_H_
 
 
-template<UInt ORDER, typename Integrator, typename A>
-void Assembler::operKernel(EOExpr<A> oper,const MeshHandler<ORDER,2,2>& mesh,
-	                     FiniteElement<Integrator, ORDER,2,2>& fe, SpMat& OpMat)
+template<UInt ORDER, typename Integrator, UInt mydim, UInt ndim, typename A>
+void Assembler::operKernel(EOExpr<A> oper, const MeshHandler<ORDER,mydim,ndim>& mesh,
+	                     FiniteElement<Integrator,ORDER,mydim,ndim>& fe, SpMat& OpMat)
 {
 	static constexpr Real eps = std::numeric_limits<Real>::epsilon(),
 		 tolerance = 10 * eps;
-	std::vector<coeff> triplets;
+	static constexpr UInt NBASES = FiniteElement<Integrator,ORDER,mydim,ndim>::NBASES;
+	using local_matr_t = typename FiniteElement<Integrator, ORDER, mydim, ndim>::return_t;
 
-  for(auto t=0; t<mesh.num_elements(); ++t){
+	std::vector<coeff> triplets;
+	triplets.reserve(NBASES*NBASES*mesh.num_elements());
+
+	std::vector<UInt> identifiers;
+	identifiers.reserve(NBASES);
+
+	local_matr_t loc_matr = local_matr_t::Zero();
+
+  for(int t=0; t<mesh.num_elements(); ++t){
+
 		fe.updateElement(mesh.getElement(t));
 
 		// Vector of vertices indices (link local to global indexing system)
-		std::vector<UInt> identifiers;
-		identifiers.reserve(3*ORDER);
-		for(auto q=0; q<3*ORDER; ++q)
-			identifiers.push_back(fe[q].id());
+		for(int i=0; i<NBASES; ++i)
+			identifiers.push_back(fe[i].id());
 
-		//localM=localMassMatrix(currentelem);
-		for(int i = 0; i < 3*ORDER; i++)
-		{
-			for(int j = 0; j < 3*ORDER; j++)
-			{
-				Real s=0;
+		for(int iq = 0; iq < Integrator::NNODES; ++iq)
+				loc_matr += oper(fe, iq) * Integrator::WEIGHTS[iq];
 
-				for(int l = 0;l < Integrator::NNODES; l++)
-				{
-					s += oper(fe,i,j,l) * fe.getArea() * Integrator::WEIGHTS[l];
-				}
-			  triplets.push_back(coeff(identifiers[i],identifiers[j],s));
-			}
-		}
+		loc_matr *= fe.getMeasure();
+
+		for (int j=0; j<NBASES; ++j)
+			for (int i=0; i<NBASES; ++i)
+				triplets.push_back(coeff(identifiers[i],identifiers[j],loc_matr(i,j)));
+
+		identifiers.clear();
+		loc_matr.setZero();
 	}
 
-  	UInt nnodes = mesh.num_nodes();
-  	OpMat.resize(nnodes, nnodes);
+  UInt nnodes = mesh.num_nodes();
+  OpMat.resize(nnodes, nnodes);
 	OpMat.setFromTriplets(triplets.begin(),triplets.end());
 	OpMat.prune(tolerance);
 }
 
-template<UInt ORDER, typename Integrator>
-void Assembler::forcingTerm(const MeshHandler<ORDER,2,2>& mesh,
-	                     FiniteElement<Integrator, ORDER,2,2>& fe, const ForcingTerm& u, VectorXr& forcingTerm)
+template<UInt ORDER, typename Integrator, UInt mydim, UInt ndim>
+void Assembler::forcingTerm(const MeshHandler<ORDER,mydim,ndim>& mesh,
+	                     FiniteElement<Integrator, ORDER,mydim,ndim>& fe, const ForcingTerm& u, VectorXr& forcingTerm)
 {
+	static constexpr UInt NBASES = FiniteElement<Integrator,ORDER,mydim,ndim>::NBASES;
 
 	forcingTerm = VectorXr::Zero(mesh.num_nodes());
 
-  	for(auto t=0; t<mesh.num_elements(); t++)
-  	{
+  for(int t=0; t<mesh.num_elements(); ++t){
+
 		fe.updateElement(mesh.getElement(t));
 
-		// Vector of vertices indices (link local to global indexing system)
-		std::vector<UInt> identifiers;
-				identifiers.resize(3*ORDER);
-
-		for( auto q=0; q<3*ORDER; q++)
-			identifiers[q]=mesh.getElement(t)[q].id();
-
-
-		//localM=localMassMatrix(currentelem);
-		for(int i = 0; i < 3*ORDER; i++)
-		{
+		for(int i=0; i<NBASES; ++i){
 			Real s=0;
-
-			for(int iq = 0;iq < Integrator::NNODES; iq++)
-			{
+			for(int iq = 0; iq < Integrator::NNODES; ++iq){
 				UInt globalIndex = fe.getGlobalIndex(iq);
-				s +=  fe.phiMaster(i,iq)* u(globalIndex) * fe.getArea()* Integrator::WEIGHTS[iq];//(*)
+				s +=  fe.phiMaster(i,iq)* u(globalIndex) * Integrator::WEIGHTS[iq];//(*)
 			}
-			forcingTerm[identifiers[i]] += s;
+			forcingTerm[fe[i].id()] += s * fe.getMeasure();
 		}
-
 	}
 }
-
-
-//! Surface mesh implementation
-
-template<UInt ORDER, typename Integrator, typename A>
-void Assembler::operKernel(EOExpr<A> oper,const MeshHandler<ORDER,2,3>& mesh,
-	                     FiniteElement<Integrator, ORDER,2,3>& fe, SpMat& OpMat)
-{
-	Real eps = 2.2204e-016,
-		 tolerance = 10 * eps;
-	std::vector<coeff> triplets;
-
-
-  	for(auto t=0; t<mesh.num_elements(); t++)
-  	{
-		fe.updateElement(mesh.getElement(t));
-
-		// Vector of vertices indices (link local to global indexing system)
-		std::vector<UInt> identifiers;
-		identifiers.resize(3*ORDER);
-		for( auto q=0; q<3*ORDER; q++)
-			identifiers[q]=mesh.getElement(t)[q].id();
-
-		//localM=localMassMatrix(currentelem);
-		for(int i = 0; i < 3*ORDER; i++)
-		{
-			for(int j = 0; j < 3*ORDER; j++)
-			{
-				Real s=0;
-
-				for(int l = 0;l < Integrator::NNODES; l++)
-				{
-					s += oper(fe,i,j,l) * fe.getArea() * Integrator::WEIGHTS[l];
-				}
-			  triplets.push_back(coeff(identifiers[i],identifiers[j],s));
-			}
-		}
-
-	}
-
-  	UInt nnodes = mesh.num_nodes();
-  	OpMat.resize(nnodes, nnodes);
-	OpMat.setFromTriplets(triplets.begin(),triplets.end());
-	OpMat.prune(tolerance);
-}
-
-
-
-template<UInt ORDER, typename Integrator>
-void Assembler::forcingTerm(const MeshHandler<ORDER,2,3>& mesh,
-	                     FiniteElement<Integrator, ORDER,2,3>& fe, const ForcingTerm& u, VectorXr& forcingTerm)
-{
-
-	forcingTerm = VectorXr::Zero(mesh.num_nodes());
-
-  	for(auto t=0; t<mesh.num_elements(); t++)
-  	{
-		fe.updateElement(mesh.getElement(t));
-
-		// Vector of vertices indices (link local to global indexing system)
-		std::vector<UInt> identifiers;
-				identifiers.resize(3*ORDER);
-
-		for( auto q=0; q<3*ORDER; q++)
-			identifiers[q]=mesh.getElement(t)[q].id();
-
-
-		//localM=localMassMatrix(currentelem);
-		for(int i = 0; i < 3*ORDER; i++)
-		{
-			Real s=0;
-
-			for(int iq = 0;iq < Integrator::NNODES; iq++)
-			{
-				UInt globalIndex = fe.getGlobalIndex(iq);
-				s +=  fe.phiMaster(i,iq)* u(globalIndex) * fe.getArea() * Integrator::WEIGHTS[iq];//(*)
-			}
-			forcingTerm[identifiers[i]] += s;
-		}
-
-	}
-
-}
-
-//! Volume mesh implementation
-
-template<UInt ORDER, typename Integrator, typename A>
-void Assembler::operKernel(EOExpr<A> oper,const MeshHandler<ORDER,3,3>& mesh,
-	                     FiniteElement<Integrator, ORDER,3,3>& fe, SpMat& OpMat)
-{
-	Real eps = 2.2204e-016,
-		 tolerance = 10 * eps;
-	std::vector<coeff> triplets;
-
-
-  	for(auto t=0; t<mesh.num_elements(); t++)
-  	{
-		fe.updateElement(mesh.getElement(t));
-
-		// Vector of vertices indices (link local to global indexing system)
-		std::vector<UInt> identifiers;
-		identifiers.resize(6*ORDER-2);
-		for( auto q=0; q<6*ORDER-2; q++)
-			identifiers[q]=mesh.getElement(t)[q].id();
-
-		//localM=localMassMatrix(currentelem);
-		for(int i = 0; i < 6*ORDER-2; i++)
-		{
-			for(int j = 0; j < 6*ORDER-2; j++)
-			{
-				Real s=0;
-
-				for(int l = 0;l < Integrator::NNODES; l++)
-				{
-					s += oper(fe,i,j,l) * fe.getVolume() * Integrator::WEIGHTS[l];
-				}
-			  triplets.push_back(coeff(identifiers[i],identifiers[j],s));
-			}
-		}
-
-	}
-
-  	UInt nnodes = mesh.num_nodes();
-  	OpMat.resize(nnodes, nnodes);
-	OpMat.setFromTriplets(triplets.begin(),triplets.end());
-	OpMat.prune(tolerance);
-}
-
-
-
-template<UInt ORDER, typename Integrator>
-void Assembler::forcingTerm(const MeshHandler<ORDER,3,3>& mesh,
-	                     FiniteElement<Integrator, ORDER,3,3>& fe, const ForcingTerm& u, VectorXr& forcingTerm)
-{
-
-	forcingTerm = VectorXr::Zero(mesh.num_nodes());
-
-  	for(auto t=0; t<mesh.num_elements(); t++)
-  	{
-		fe.updateElement(mesh.getElement(t));
-
-		// Vector of vertices indices (link local to global indexing system)
-		std::vector<UInt> identifiers;
-				identifiers.resize(6*ORDER-2);
-
-		for( auto q=0; q<6*ORDER-2; q++)
-			identifiers[q]=mesh.getElement(t)[q].id();
-
-
-		//localM=localMassMatrix(currentelem);
-		for(int i = 0; i < 6*ORDER-2; i++)
-		{
-			Real s=0;
-
-			for(int iq = 0;iq < Integrator::NNODES; iq++)
-			{
-				UInt globalIndex = fe.getGlobalIndex(iq);
-				s +=  fe.phiMaster(i,iq)* u(globalIndex) * fe.getVolume() * Integrator::WEIGHTS[iq];//(*)
-			}
-			forcingTerm[identifiers[i]] += s;
-		}
-
-	}
-
-}
-
-
-
 
 #endif

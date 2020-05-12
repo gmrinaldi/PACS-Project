@@ -22,13 +22,13 @@ private:
 	Eigen::Matrix<Real, NBASES, Integrator::NNODES> phiMapMaster_;
 	//Num local bases x num coords x num quad nodes
 	Eigen::Matrix<Real, NBASES, Integrator::NNODES*mydim> phiDerMapMaster_;
-	Eigen::Matrix<Real, NBASES, Integrator::NNODES*mydim> invTrJPhiDerMapMaster_;
+	Eigen::Matrix<Real, NBASES, Integrator::NNODES*ndim> invTrJPhiDerMapMaster_;
 
 	void setPhiMaster();
 	void setPhiDerMaster();
 	void setInvTrJPhiDerMaster();
 public:
-
+	using return_t = Eigen::Matrix<Real,NBASES,NBASES>;
 	//! This is an empty constructor
     /*!
         For efficiency and Expression Templates organization of the
@@ -59,10 +59,11 @@ public:
 	UInt getGlobalIndex(UInt iq) {return Integrator::NNODES * t_.getId() + iq;}
 
 	// These function are used in matrix_assembler.h
-	Real stiff_impl(UInt i, UInt j, UInt iq);
-	Real stiff_anys_impl(UInt i, UInt j, UInt iq, const Eigen::Matrix<Real, ndim, ndim>&);
-	Real mass_impl(UInt i, UInt j, UInt iq);
-	Real grad_impl(UInt i, UInt j, UInt iq, UInt ic);
+	return_t stiff_impl(UInt iq);
+	return_t stiff_anys_impl(UInt iq, const Eigen::Matrix<Real, ndim, ndim>&);
+	return_t mass_impl(UInt iq);
+	return_t grad_impl(UInt iq, const Eigen::Matrix<Real,ndim,1>&);
+
 
 };
 

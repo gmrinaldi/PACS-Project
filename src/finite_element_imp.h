@@ -54,29 +54,34 @@ void FiniteElement<Integrator, ORDER, mydim, ndim>::setInvTrJPhiDerMaster()
 }
 
 template <class Integrator, UInt ORDER, UInt mydim, UInt ndim>
-Real FiniteElement<Integrator, ORDER, mydim, ndim>::stiff_impl(UInt i, UInt j, UInt iq){
-	// compute nabla(phi_i) dot nabla(phi_j) at node iq
-	return invTrJPhiDerMapMaster_.template block<1,ndim>(i,ndim*iq).dot(invTrJPhiDerMapMaster_.template block<1,ndim>(j,ndim*iq));
+typename FiniteElement<Integrator, ORDER, mydim, ndim>::return_t
+FiniteElement<Integrator, ORDER, mydim, ndim>::stiff_impl(UInt iq){
+	// compute nabla(phi) x nabla(phi) at node iq
+	return invTrJPhiDerMapMaster_.template block<NBASES,ndim>(0,ndim*iq) * invTrJPhiDerMapMaster_.template block<NBASES,ndim>(0,ndim*iq).transpose();
 }
 
 template <class Integrator, UInt ORDER, UInt mydim, UInt ndim>
-Real FiniteElement<Integrator, ORDER, mydim, ndim>::stiff_anys_impl(UInt i, UInt j, UInt iq, const Eigen::Matrix<Real,ndim,ndim>& K){
-	// compute nabla(phi_i) dot K nabla(phi_j) at node iq
+typename FiniteElement<Integrator, ORDER, mydim, ndim>::return_t
+FiniteElement<Integrator, ORDER, mydim, ndim>::stiff_anys_impl(UInt iq, const Eigen::Matrix<Real,ndim,ndim>& K){
+	// compute nabla(phi) x K nabla(phi) at node iq
 	// Memo: K is symmetric!
-	return invTrJPhiDerMapMaster_.template block<1,ndim>(i,ndim*iq).transpose()*K*invTrJPhiDerMapMaster_.template block<1,ndim>(j,ndim*iq);
+	return invTrJPhiDerMapMaster_.template block<NBASES,ndim>(0,ndim*iq) * K * invTrJPhiDerMapMaster_.template block<NBASES,ndim>(0,ndim*iq).transpose();
 }
 
 template <class Integrator, UInt ORDER, UInt mydim, UInt ndim>
-Real FiniteElement<Integrator, ORDER, mydim, ndim>::mass_impl(UInt i, UInt j, UInt iq){
-	// compute phi_i x phi_j at node iq
-	return phiMapMaster_(i,iq)*phiMapMaster_(j,iq);
+typename FiniteElement<Integrator, ORDER, mydim, ndim>::return_t
+FiniteElement<Integrator, ORDER, mydim, ndim>::mass_impl(UInt iq){
+	// compute phi x phi at node iq
+	return phiMapMaster_.col(iq)*phiMapMaster_.col(iq).transpose();
 }
 
 template <class Integrator, UInt ORDER, UInt mydim, UInt ndim>
-Real FiniteElement<Integrator, ORDER, mydim, ndim>::grad_impl(UInt i, UInt j, UInt iq, UInt ic){
-	// compute phi_i x nabla(phi_j) at node iq
-	return phiMapMaster_(i,iq)*invTrJPhiDerMapMaster_(j,ndim*iq+ic);
+typename FiniteElement<Integrator, ORDER, mydim, ndim>::return_t
+FiniteElement<Integrator, ORDER, mydim, ndim>::grad_impl(UInt iq, const Eigen::Matrix<Real,ndim,1>& b){
+	// compute phi x nabla(phi) x b at node iq
+	return phiMapMaster_.col(iq) * b.transpose() * invTrJPhiDerMapMaster_.template block<NBASES,ndim>(0,ndim*iq).transpose();
 }
+
 
 
 // Templates for auxiliary functions

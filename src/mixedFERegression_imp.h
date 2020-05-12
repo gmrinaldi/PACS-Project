@@ -740,7 +740,7 @@ public:
 		typedef EOExpr<Grad> ETGrad;   Grad EGrad;   ETGrad grad(EGrad);
 
 		const Reaction& c = this->regressionData_.getC();
-		const Diffusivity& K = this->regressionData_.getK();
+		const Diffusion& K = this->regressionData_.getK();
 		const Advection& b = this->regressionData_.getBeta();
 		const ForcingTerm& u= this->regressionData_.getU();
 

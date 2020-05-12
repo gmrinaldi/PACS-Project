@@ -400,7 +400,7 @@ SEXP get_FEM_PDE_space_varying_matrix(SEXP Rlocations, SEXP Robservations, SEXP 
 	typedef EOExpr<Grad> ETGrad;   Grad EGrad;   ETGrad grad(EGrad);
 
 	const Reaction& c = regressionData.getC();
-	const Diffusivity& K = regressionData.getK();
+	const Diffusion& K = regressionData.getK();
 	const Advection& beta = regressionData.getBeta();
 
     if(regressionData.getOrder()==1 && ndim==2)
