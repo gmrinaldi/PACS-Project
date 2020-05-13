@@ -31,7 +31,7 @@ void MixedFEFPCABase<Integrator, ORDER, mydim, ndim>::computeDelta()
 		{
 			if (fpcaData_.getIncidenceMatrix()(i,j) == 1)
 			{
-				Delta_(i)+=mesh_.elementMeasure(j);
+				Delta_(i)+=mesh_.getElement(j).getMeasure();
 			}
 		}
 	}
@@ -71,6 +71,7 @@ void MixedFEFPCABase<Integrator, ORDER, mydim, ndim>::computeBasisEvaluations()
 		for(UInt i=0; i<nlocations;i++)
 		{
 			tri_activated = mesh_.findLocationNaive(fpcaData_.getLocations()[i]);
+
 			if(tri_activated.getId() == Identifier::NVAL)
 			{
 				#ifdef R_VERSION_

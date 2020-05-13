@@ -21,9 +21,9 @@ protected:
 	//!A MeshHandler object containing the mesh.
 	const MeshHandler<ORDER, mydim, ndim> &mesh_;
 	//!A FPCAData object containing the data passed from R.
-	const FPCAData& fpcaData_;
+	const FPCAData<ndim>& fpcaData_;
 	std::vector<coeff> tripletsData_;
-	
+
 	//!A Eigen::SparseMatrix<Real> containing the basis function.
 	//SpMat psi_;
 
@@ -43,16 +43,16 @@ protected:
 
 	//! A Eigen::VectorXr: Stores the area/volume of each region
 	VectorXr Delta_; //Delta_.asDiagonal() = diag(|D_1|,...,|D_N|)
-	
+
 	//!A Eigen::SparseMatrix<Real> containing the matrix of the linear system
 	SpMat coeffmatrix_;       //!A Eigen::VectorXr: Stores the system right hand side.
 	VectorXr b_;			  //!A Eigen::VectorXr: Stores the system solution.
 	std::vector<VectorXr> solution_;
-	
+
 	Sparse_LU sparseSolver_;
 	//!A Real : Stores the variance of the edf computation using the stochastic method.
 	std::vector<Real> var_;
-	
+
 	//!A Eigen::VectorXr : Stores the final scores computed for each PC.
 	std::vector<VectorXr> scores_mat_;
 	//!A Eigen::VectorXr : Stores the final loadings computed for each PC.
@@ -65,7 +65,7 @@ protected:
 	std::vector<Real> cumsum_percentage_;
 	//!A Eigen::MatrixXr : Stores the datamatrix and its updates after each PC is computed.
 	MatrixXr datamatrixResiduals_ ;
-	
+
 	//! A method for the computation of Delta_
 	void computeDelta();
 	//! A method for the computation of the basis function matrix Psi_.
@@ -86,20 +86,20 @@ protected:
 	void computeIterations(MatrixXr & datamatrixResiduals_,FPCAObject & FPCAinput, UInt lambda_index, UInt nnodes);
 	//! A method for the initialization of all the parameters used in the iteration of the SF-PCA algorithm.
 	void SetAndFixParameters();
-	
-	
-	
+
+
+
 
 public:
 	//!A Constructor.
-	MixedFEFPCABase(const MeshHandler<ORDER,mydim,ndim>& mesh, const FPCAData& fpcaData): mesh_(mesh),fpcaData_(fpcaData),isRcomputed_(false) {};
+	MixedFEFPCABase(const MeshHandler<ORDER,mydim,ndim>& mesh, const FPCAData<ndim>& fpcaData): mesh_(mesh),fpcaData_(fpcaData),isRcomputed_(false) {};
 
 	//!A destructor.
-	virtual ~MixedFEFPCABase(){};	
-	
+	virtual ~MixedFEFPCABase(){};
+
 	//!A virtual method that will be called for performing the algorithm. This method is specified in the children classes.
 	virtual  void apply()=0;
-	
+
 	//! A inline member that returns a VectorXr, returns the whole solution_.
 	inline std::vector<VectorXr> const & getSolution() const{return solution_;};
 	//! A method returning a reference to the scores matrix.
@@ -123,8 +123,8 @@ class MixedFEFPCA : public MixedFEFPCABase<Integrator, ORDER, mydim, ndim>
 {
 public:
 	//!A constructor.
-	MixedFEFPCA(const MeshHandler<ORDER, mydim, ndim>& mesh, const FPCAData& fpcaData):MixedFEFPCABase<Integrator, ORDER, mydim, ndim>(mesh, fpcaData){};
-	
+	MixedFEFPCA(const MeshHandler<ORDER, mydim, ndim>& mesh, const FPCAData<ndim>& fpcaData):MixedFEFPCABase<Integrator, ORDER, mydim, ndim>(mesh, fpcaData){};
+
 	//!A Destructor.
 	virtual ~MixedFEFPCA(){};
 
@@ -149,7 +149,7 @@ protected:
 	void computeDegreesOfFreedomExact(UInt output_index, Real lambda);
 	//! A method for the stochastic computation of the degres of freedom for a specific lambda
 	void computeDegreesOfFreedomStochastic(UInt output_index, Real lambda);
-	
+
 	//! A method for the computation of the iterations of the SF-PCA algorithm
 	void computeIterationsGCV(MatrixXr &datamatrixResiduals_, UInt nnodes, UInt np);
 	//! A method for the computation of the GCV
@@ -158,11 +158,11 @@ protected:
 	void computeDegreesOfFreedom(UInt output_index);
 public:
 	//!A Constructor.
-	MixedFEFPCAGCV(const MeshHandler<ORDER, mydim, ndim>& mesh, const FPCAData& fpcaData):MixedFEFPCABase<Integrator, ORDER, mydim, ndim>(mesh, fpcaData){};
-	
+	MixedFEFPCAGCV(const MeshHandler<ORDER, mydim, ndim>& mesh, const FPCAData<ndim>& fpcaData):MixedFEFPCABase<Integrator, ORDER, mydim, ndim>(mesh, fpcaData){};
+
 	//!A Destructor.
 	virtual ~MixedFEFPCAGCV(){};
-	
+
 	//!A specification of the virtual method for performing the SF-PCA algorithm with GCV cross-validation method for the choice of the parameter lambda.
 	void apply();
 	//!A method returning the degrees of freedom of the problem.
@@ -182,11 +182,11 @@ protected:
 	void computeKFolds(MatrixXr & datamatrixResiduals_, UInt lambda_index, UInt nnodes,UInt nFolds);
 public:
 	//!A Constructor.
-	MixedFEFPCAKFold(const MeshHandler<ORDER, mydim, ndim>& mesh, const FPCAData& fpcaData):MixedFEFPCABase<Integrator, ORDER, mydim, ndim>(mesh, fpcaData){};
-	
+	MixedFEFPCAKFold(const MeshHandler<ORDER, mydim, ndim>& mesh, const FPCAData<ndim>& fpcaData):MixedFEFPCABase<Integrator, ORDER, mydim, ndim>(mesh, fpcaData){};
+
 	//!A Destructor.
 	virtual ~MixedFEFPCAKFold(){};
-	
+
 	//!A specification of the virtual method for performing the SF-PCA algorithm with the K-Fold cross-validation method for the choice of the parameter lambda.
 	void apply();
 };

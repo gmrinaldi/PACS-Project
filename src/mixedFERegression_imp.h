@@ -318,7 +318,7 @@ void MixedFERegressionBase<InputHandler,Integrator,ORDER,mydim, ndim>::setA()
 		{
 			if (regressionData_.getIncidenceMatrix()(i,j) == 1)
 			{
-				A_(i)+=mesh_.elementMeasure(j);
+				A_(i)+=mesh_.getElement(j).getMeasure();
 			}
 		}
 	}
@@ -676,23 +676,23 @@ void MixedFERegressionBase<InputHandler,Integrator,ORDER, mydim, ndim>::apply(EO
 }
 
 template<typename Integrator, UInt ORDER, UInt mydim, UInt ndim>
-class MixedFERegression<RegressionData, Integrator, ORDER, mydim, ndim> : public MixedFERegressionBase<RegressionData, Integrator, ORDER, mydim, ndim>
+class MixedFERegression<RegressionData<ndim>, Integrator, ORDER, mydim, ndim> : public MixedFERegressionBase<RegressionData<ndim>, Integrator, ORDER, mydim, ndim>
 {
 public:
-	MixedFERegression(const MeshHandler<ORDER, mydim, ndim>& mesh, const RegressionData& regressionData):MixedFERegressionBase<RegressionData, Integrator, ORDER, mydim, ndim>(mesh, regressionData){};
+	MixedFERegression(const MeshHandler<ORDER, mydim, ndim>& mesh, const RegressionData<ndim>& regressionData) : MixedFERegressionBase<RegressionData<ndim>, Integrator, ORDER, mydim, ndim>(mesh, regressionData){};
 
 	void apply()
 	{
 		typedef EOExpr<Stiff> ETStiff; Stiff EStiff; ETStiff stiff(EStiff);
-	    MixedFERegressionBase<RegressionData, Integrator, ORDER, mydim, ndim>::apply(stiff, ForcingTerm(std::vector<Real>(1)));
+	  MixedFERegressionBase<RegressionData<ndim>, Integrator, ORDER, mydim, ndim>::apply(stiff, ForcingTerm(std::vector<Real>(1)));
 	}
 };
 
 template<typename Integrator, UInt ORDER, UInt mydim, UInt ndim>
-class MixedFERegression<RegressionDataElliptic, Integrator, ORDER, mydim, ndim> : public MixedFERegressionBase<RegressionDataElliptic, Integrator, ORDER, mydim, ndim>
+class MixedFERegression<RegressionDataElliptic<ndim>, Integrator, ORDER, mydim, ndim> : public MixedFERegressionBase<RegressionDataElliptic<ndim>, Integrator, ORDER, mydim, ndim>
 {
 public:
-	MixedFERegression(const MeshHandler<ORDER, mydim, ndim>& mesh, const RegressionDataElliptic& regressionData):MixedFERegressionBase<RegressionDataElliptic, Integrator, ORDER, mydim, ndim>(mesh, regressionData){};
+	MixedFERegression(const MeshHandler<ORDER, mydim, ndim>& mesh, const RegressionDataElliptic<ndim>& regressionData) : MixedFERegressionBase<RegressionDataElliptic<ndim>, Integrator, ORDER, mydim, ndim>(mesh, regressionData){};
 
 	void apply()
 	{
@@ -709,20 +709,20 @@ public:
 		typedef EOExpr<Stiff> ETStiff; Stiff EStiff; ETStiff stiff(EStiff);
 		typedef EOExpr<Grad> ETGrad;   Grad EGrad;   ETGrad grad(EGrad);
 
-	    const Real& c = this->regressionData_.getC();
-	    const Eigen::Matrix<Real,2,2>& K = this->regressionData_.getK();
-	    const Eigen::Matrix<Real,2,1>& b = this->regressionData_.getBeta();
+	  const Real& c = this->regressionData_.getC();
+	  const Diffusion<ndim>& K = this->regressionData_.getK();
+	  const Advection<ndim>& b = this->regressionData_.getBeta();
 
-	    MixedFERegressionBase<RegressionDataElliptic, Integrator, ORDER, mydim, ndim>::apply(c*mass+stiff[K]+dot(b,grad), ForcingTerm(std::vector<Real>(1)));
+	  MixedFERegressionBase<RegressionDataElliptic<ndim>, Integrator, ORDER, mydim, ndim>::apply(c*mass+stiff[K]+grad[b], ForcingTerm(std::vector<Real>(1)));
 	}
 	}
 };
 
 template<typename Integrator, UInt ORDER, UInt mydim, UInt ndim>
-class MixedFERegression<RegressionDataEllipticSpaceVarying, Integrator, ORDER, mydim, ndim> : public MixedFERegressionBase<RegressionDataEllipticSpaceVarying, Integrator, ORDER, mydim, ndim>
+class MixedFERegression<RegressionDataEllipticSpaceVarying<ndim>, Integrator, ORDER, mydim, ndim> : public MixedFERegressionBase<RegressionDataEllipticSpaceVarying<ndim>, Integrator, ORDER, mydim, ndim>
 {
 public:
-	MixedFERegression(const MeshHandler<ORDER, mydim, ndim>& mesh, const RegressionDataEllipticSpaceVarying& regressionData):MixedFERegressionBase<RegressionDataEllipticSpaceVarying, Integrator, ORDER, mydim, ndim>(mesh, regressionData){};
+	MixedFERegression(const MeshHandler<ORDER, mydim, ndim>& mesh, const RegressionDataEllipticSpaceVarying<ndim>& regressionData) : MixedFERegressionBase<RegressionDataEllipticSpaceVarying<ndim>, Integrator, ORDER, mydim, ndim>(mesh, regressionData){};
 
 	void apply()
 	{
@@ -740,13 +740,13 @@ public:
 		typedef EOExpr<Grad> ETGrad;   Grad EGrad;   ETGrad grad(EGrad);
 
 		const Reaction& c = this->regressionData_.getC();
-		const Diffusion& K = this->regressionData_.getK();
-		const Advection& b = this->regressionData_.getBeta();
-		const ForcingTerm& u= this->regressionData_.getU();
+		const Diffusion<ndim,true>& K = this->regressionData_.getK();
+		const Advection<ndim,true>& b = this->regressionData_.getBeta();
+		const ForcingTerm& u = this->regressionData_.getU();
 
 		this->isSpaceVarying=TRUE;
 
-		MixedFERegressionBase<RegressionDataEllipticSpaceVarying, Integrator, ORDER, mydim, ndim>::apply(c*mass+stiff[K]+dot(b,grad), u);
+		MixedFERegressionBase<RegressionDataEllipticSpaceVarying<ndim>, Integrator, ORDER, mydim, ndim>::apply(c*mass+stiff[K]+grad[b], u);
 	}
 	}
 };

@@ -8,14 +8,15 @@
 //!  An IO handler class for objects passed from R
 /*!
  * This class, given the data from R, convert them in a C++ format, offering a
- * series of method for their access, so isolating the more the possible the specific
+ * series of method for their access, so isolating as much as possible the specific
  * code for R/C++ data conversion.
 */
-class  RegressionData{
+template<UInt ndim>
+class RegressionData{
 	private:
 
 		// Design matrix pointer and dimensions
-		std::vector<Point> locations_;
+		std::vector<Point<ndim> > locations_;
 
 		VectorXr observations_;
 		std::vector<UInt> observations_indices_;
@@ -52,14 +53,14 @@ class  RegressionData{
 		#endif
 
 	public:
-		
+
 		RegressionData(){};
 
 //! A basic version of the constructor.
 
 		/*!
 			It initializes the object storing the R given objects. This is the simplest of the two possible interfaces with R
-			\param Rlocations an R-matrix containing the location of the observations. 
+			\param Rlocations an R-matrix containing the location of the observations.
 			\param Robservations an R-vector containing the values of the observations.
 			\param Rorder an R-integer containing the order of the approximating basis.
 			\param Rlambda an R-double containing the penalization term of the empirical evidence respect to the prior one.
@@ -80,7 +81,7 @@ class  RegressionData{
 								SEXP Rnrealizations);
 		#endif
 
-		explicit RegressionData(std::vector<Point>& locations, VectorXr& observations, UInt order, std::vector<Real> lambda, MatrixXr& covariates, MatrixXi& incidenceMatrix, std::vector<UInt>& bc_indices, std::vector<Real>& bc_values, bool DOF);
+		explicit RegressionData(std::vector<Point<ndim> >& locations, VectorXr& observations, UInt order, std::vector<Real> lambda, MatrixXr& covariates, MatrixXi& incidenceMatrix, std::vector<UInt>& bc_indices, std::vector<Real>& bc_values, bool DOF);
 
 
 		void printObservations(std::ostream & out) const;
@@ -97,7 +98,7 @@ class  RegressionData{
 		//! A method returning the number of observations
 		inline UInt const getNumberofObservations() const {return observations_.size();}
 		//! A method returning the locations of the observations
-		inline std::vector<Point> const & getLocations() const {return locations_;}
+		inline std::vector<Point<ndim> > const & getLocations() const {return locations_;}
 		//! A method returning the number of regions
 		inline UInt const getNumberOfRegions() const {return nRegions_;}
 		inline bool isLocationsByNodes() const {return locations_by_nodes_;}
@@ -119,19 +120,19 @@ class  RegressionData{
 		inline UInt const & getNrealizations() const {return nrealizations_;}
 };
 
-
-class  RegressionDataElliptic:public RegressionData
+template<UInt ndim>
+class RegressionDataElliptic : public RegressionData<ndim>
 {
 	private:
-		Eigen::Matrix<Real,2,2> K_;
-		Eigen::Matrix<Real,2,1> beta_;
+		Diffusion<ndim> K_;
+		Advection<ndim> beta_;
 		Real c_;
 
 	public:
 		//! A complete version of the constructor.
 		/*!
 			It initializes the object storing the R given objects. This is the simplest of the two possible interfaces with R
-			\param Rlocations an R-matrix containing the location of the observations. 
+			\param Rlocations an R-matrix containing the location of the observations.
 			\param Robservations an R-vector containing the values of the observations.
 			\param Rorder an R-integer containing the order of the approximating basis.
 			\param Rlambda an R-double containing the penalization term of the empirical evidence respect to the prior one.
@@ -148,36 +149,37 @@ class  RegressionDataElliptic:public RegressionData
 	        \param Rnrealizations the number of random points used in the stochastic computation of the dofs
 		*/
 		#ifdef R_VERSION_
-		explicit RegressionDataElliptic(SEXP Rlocations, SEXP Robservations, SEXP Rorder, SEXP Rlambda, SEXP RK, 
+		explicit RegressionDataElliptic(SEXP Rlocations, SEXP Robservations, SEXP Rorder, SEXP Rlambda, SEXP RK,
 				SEXP Rbeta, SEXP Rc, SEXP Rcovariates, SEXP RincidenceMatrix, SEXP RBCIndices, SEXP RBCValues,
 				SEXP DOF,SEXP RGCVmethod, SEXP Rnrealizations);
 		#endif
 
-		explicit RegressionDataElliptic(std::vector<Point>& locations, VectorXr& observations, UInt order,
-										std::vector<Real> lambda, Eigen::Matrix<Real,2,2>& K,
-										Eigen::Matrix<Real,2,1>& beta, Real c, MatrixXr& covariates,
+		explicit RegressionDataElliptic(std::vector<Point<ndim> >& locations, VectorXr& observations, UInt order,
+										std::vector<Real> lambda, Eigen::Matrix<Real,ndim,ndim>& K,
+										Eigen::Matrix<Real,ndim,1>& beta, Real c, MatrixXr& covariates,
 										MatrixXi& incidenceMatrix, std::vector<UInt>& bc_indices,
 										std::vector<Real>& bc_values, bool DOF);
 
-		inline Eigen::Matrix<Real,2,2> const & getK() const {return K_;}
-		inline Eigen::Matrix<Real,2,1> const & getBeta() const {return beta_;}
+		inline Diffusion<ndim> const & getK() const {return K_;}
+		inline Advection<ndim> const & getBeta() const {return beta_;}
 		inline Real const getC() const {return c_;}
 };
 
-class RegressionDataEllipticSpaceVarying:public RegressionData
+template<UInt ndim>
+class RegressionDataEllipticSpaceVarying : public RegressionData<ndim>
 {
 	private:
-		Diffusion K_;
-		Advection beta_;
+		Diffusion<ndim,true> K_;
+		Advection<ndim,true> beta_;
 		Reaction c_;
 		ForcingTerm u_;
 
 	public:
-		
+
 		//! A complete version of the constructor.
 		/*!
 			It initializes the object storing the R given objects. This is the simplest of the two possible interfaces with R
-			\param Rlocations an R-matrix containing the location of the observations. 
+			\param Rlocations an R-matrix containing the location of the observations.
 			\param Robservations an R-vector containing the values of the observations.
 			\param Rorder an R-integer containing the order of the approximating basis.
 			\param Rlambda an R-double containing the penalization term of the empirical evidence respect to the prior one.
@@ -193,7 +195,7 @@ class RegressionDataEllipticSpaceVarying:public RegressionData
 			\param DOF an R boolean indicating whether dofs of the model have to be computed or not
 	        \param RGCVmethod an R-integer indicating the method to use to compute the dofs when DOF is TRUE, can be either 1 (exact) or 2 (stochastic)
 	        \param Rnrealizations the number of random points used in the stochastic computation of the dofs
-			
+
 		*/
 		#ifdef R_VERSION_
 		explicit RegressionDataEllipticSpaceVarying(SEXP Rlocations, SEXP Robservations, SEXP Rorder, SEXP Rlambda,
@@ -202,17 +204,17 @@ class RegressionDataEllipticSpaceVarying:public RegressionData
 		#endif
 
 
-		explicit RegressionDataEllipticSpaceVarying(std::vector<Point>& locations, VectorXr& observations,
+		explicit RegressionDataEllipticSpaceVarying(std::vector<Point<ndim> >& locations, VectorXr& observations,
 													UInt order, std::vector<Real> lambda,
-													const std::vector<Eigen::Matrix<Real,2,2>, Eigen::aligned_allocator<Eigen::Matrix<Real,2,2> > >& K,
-													const std::vector<Eigen::Matrix<Real,2,1>, Eigen::aligned_allocator<Eigen::Matrix<Real,2,1> > >& beta,
+													const std::vector<Eigen::Matrix<Real,ndim,ndim>, Eigen::aligned_allocator<Eigen::Matrix<Real,ndim,ndim> > >& K,
+													const std::vector<Eigen::Matrix<Real,ndim,1>, Eigen::aligned_allocator<Eigen::Matrix<Real,ndim,1> > >& beta,
 													const std::vector<Real>& c, const std::vector<Real>& u,
 													MatrixXr& covariates, MatrixXi& incidenceMatrix,
 													std::vector<UInt>& bc_indices, std::vector<Real>& bc_values,
 													bool DOF);
 
-		inline Diffusion const & getK() const {return K_;}
-		inline Advection const & getBeta() const {return beta_;}
+		inline Diffusion<ndim,true> const & getK() const {return K_;}
+		inline Advection<ndim,true> const & getBeta() const {return beta_;}
 		inline Reaction const & getC() const {return c_;}
 		inline ForcingTerm const & getU() const {return u_;}
 

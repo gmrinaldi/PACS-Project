@@ -1,4 +1,4 @@
-useDynLib(fdaPDE)
+useDynLib(PACSProject)
 	
 	import(Matrix)
         import(plot3D)

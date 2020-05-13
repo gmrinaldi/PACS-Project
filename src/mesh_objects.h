@@ -38,7 +38,7 @@ public:
 	BcId bcId() const {return bcId_;}
 	Id getId() const {return id_;}
 
-	protected:
+protected:
 	Id id_=NVAL;
 	BcId bcId_=NVAL;
 };

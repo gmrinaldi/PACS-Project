@@ -11,8 +11,15 @@ template <UInt ndim, bool is_space_varying = false>
 struct Diffusion{
   using diffusion_matr = Eigen::Matrix<Real,ndim,ndim>;
 
-	Diffusion(const diffusion_matr& K):
-			K_(K){}
+	Diffusion(const diffusion_matr& K) :
+			K_(K) {}
+
+  #ifdef R_VERSION_
+  Diffusion(SEXP RGlobalVector){
+    K_ = Eigen::Map<const diffusion_matr>(&REAL(RGlobalVector)[0]);
+  }
+  #endif
+
 	const diffusion_matr& operator()() const {return K_;}
 
 private:
@@ -27,6 +34,7 @@ struct Diffusion<ndim, true>{
 
 	Diffusion(const diff_matr_container& K):
 			K_(K){}
+
   #ifdef R_VERSION_
 	Diffusion(SEXP RGlobalVector){
 		UInt num_int_nodes = Rf_length(RGlobalVector)/(ndim*ndim);
@@ -35,6 +43,7 @@ struct Diffusion<ndim, true>{
 				K_.push_back(Eigen::Map<const diffusion_matr>(&REAL(RGlobalVector)[ndim*ndim*i]));
 	}
 	#endif
+
 	const diffusion_matr& operator()(UInt globalNodeIndex) const {return K_[globalNodeIndex];}
 
 private:
@@ -46,8 +55,14 @@ template <UInt ndim, bool is_space_varying = false>
 struct Advection{
 	using advection_vec = Eigen::Matrix<Real,ndim,1>;
 
-	Advection(const advection_vec& beta):
+	Advection(const advection_vec& beta) :
 		beta_(beta){}
+
+  #ifdef R_VERSION_
+  Advection(SEXP RGlobalVector){
+    beta_ = Eigen::Map<const advection_vec>(&REAL(RGlobalVector)[0]);
+  }
+  #endif
 
 	const advection_vec& operator()() const {return beta_;}
 
@@ -66,12 +81,13 @@ struct Advection<ndim, true>{
 
 	#ifdef R_VERSION_
 	Advection(SEXP RGlobalVector){
-		UInt num_int_nodes = Rf_length(RGlobalVector)/2;
+		UInt num_int_nodes = Rf_length(RGlobalVector)/ndim;
 		beta_.reserve(num_int_nodes);
 		for(UInt i=0; i<num_int_nodes; ++i)
-			beta_.push_back(Eigen::Map<const advection_vec>(&REAL(RGlobalVector)[2*i]);
+			beta_.push_back(Eigen::Map<const advection_vec>(&REAL(RGlobalVector)[ndim*i]));
 	}
 	#endif
+
 	const advection_vec& operator()(UInt globalNodeIndex) const {return beta_[globalNodeIndex];}
 
 private:
@@ -84,6 +100,7 @@ class Reaction{
 public:
 	Reaction(const std::vector<Real>& c):
 		c_(c) {}
+
 #ifdef R_VERSION_
 	Reaction(SEXP RGlobalVector){
 		UInt num_int_nodes = Rf_length(RGlobalVector);
@@ -92,6 +109,7 @@ public:
 			c_.push_back(REAL(RGlobalVector)[i]);
 	}
 	#endif
+
 	const Real& operator()(UInt globalNodeIndex) const {return c_[globalNodeIndex];}
 
 };
@@ -101,6 +119,7 @@ class ForcingTerm{
 public:
 	ForcingTerm(const std::vector<Real>& u):
 		u_(u) {}
+
 	#ifdef R_VERSION_
 	ForcingTerm(SEXP RGlobalVector){
 		UInt num_int_nodes = Rf_length(RGlobalVector);
@@ -109,6 +128,7 @@ public:
 			u_.push_back(REAL(RGlobalVector)[i]);
 	}
 	#endif
+
 	Real operator()(UInt globalNodeIndex) const {return u_[globalNodeIndex];}
 };
 

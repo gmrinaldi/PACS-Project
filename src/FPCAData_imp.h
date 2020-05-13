@@ -1,7 +1,8 @@
 #ifndef __FPCADATA_IMP_HPP__
 #define __FPCADATA_IMP_HPP__
 
-FPCAData::FPCAData(std::vector<Point>& locations, MatrixXr& datamatrix, UInt order, MatrixXi& incidenceMatrix,
+template<UInt ndim>
+FPCAData<ndim>::FPCAData(std::vector<Point<ndim> >& locations, MatrixXr& datamatrix, UInt order, MatrixXi& incidenceMatrix,
 					std::vector<Real> lambda, UInt nPC, UInt nFolds): locations_(locations), datamatrix_(datamatrix), order_(order),
 					incidenceMatrix_(incidenceMatrix), lambda_(lambda),  nPC_(nPC),
 					nFolds_(nFolds)
@@ -16,47 +17,39 @@ FPCAData::FPCAData(std::vector<Point>& locations, MatrixXr& datamatrix, UInt ord
 }
 
 #ifdef R_VERSION_
-FPCAData::FPCAData(SEXP Rlocations, SEXP Rdatamatrix, SEXP Rorder, SEXP RincidenceMatrix, SEXP Rlambda, SEXP RnPC, SEXP RnFolds,SEXP RGCVmethod, SEXP Rnrealizations)
+template<UInt ndim>
+FPCAData<ndim>::FPCAData(SEXP Rlocations, SEXP Rdatamatrix, SEXP Rorder, SEXP RincidenceMatrix, SEXP Rlambda, SEXP RnPC, SEXP RnFolds,SEXP RGCVmethod, SEXP Rnrealizations)
 {
 	setLocations(Rlocations);
 	setIncidenceMatrix(RincidenceMatrix);
 	setDatamatrix(Rdatamatrix);
 	setNrealizations(Rnrealizations);
-	
+
 	GCVmethod_ = INTEGER(RGCVmethod)[0];
 
 	order_ =  INTEGER(Rorder)[0];
-	
+
 	UInt length_lambda = Rf_length(Rlambda);
 	for (UInt i = 0; i<length_lambda; ++i) lambda_.push_back(REAL(Rlambda)[i]);
 
 	nPC_ = INTEGER(RnPC)[0];
-	
+
 	nFolds_=INTEGER(RnFolds)[0];
 }
 
-void FPCAData::setLocations(SEXP Rlocations)
+template<UInt ndim>
+void FPCAData<ndim>::setLocations(SEXP Rlocations)
 {
 	n_ = INTEGER(Rf_getAttrib(Rlocations, R_DimSymbol))[0];
 	if(n_>0){
-		int ndim = INTEGER(Rf_getAttrib(Rlocations, R_DimSymbol))[1];
-
-	  if (ndim == 2){
-			for(auto i=0; i<n_; ++i)
-			{
-				locations_.emplace_back(REAL(Rlocations)[i+ n_*0],REAL(Rlocations)[i+ n_*1]);
-			}
-		}else{ //ndim == 3
-			for(auto i=0; i<n_; ++i)
-			{
-				locations_.emplace_back(REAL(Rlocations)[i+ n_*0],REAL(Rlocations)[i+ n_*1],REAL(Rlocations)[i+ n_*2]);
-			}
-		}
+		locations_.reserve(n_);
+		for(int i=0; i<n_; ++i)
+			locations_.emplace_back(Point<ndim>(i, &REAL(Rlocations)[0], n_));
 	}
 }
 
-
-void FPCAData::setDatamatrix(SEXP Rdatamatrix)
+template<UInt ndim>
+void FPCAData<ndim>::setDatamatrix(SEXP Rdatamatrix)
 {
 	n_ = INTEGER(Rf_getAttrib(Rdatamatrix, R_DimSymbol))[0];
 	p_ = INTEGER(Rf_getAttrib(Rdatamatrix, R_DimSymbol))[1];
@@ -64,14 +57,14 @@ void FPCAData::setDatamatrix(SEXP Rdatamatrix)
 	observations_indices_.reserve(p_);
 	VectorXr auxiliary_row_;
 	auxiliary_row_.resize(p_);
-	
+
 	nRegions_ = incidenceMatrix_.rows();
-	
+
 	if(locations_.size() == 0 && nRegions_==0)
 	{
 		locations_by_nodes_ = true;
 		for(auto i=0; i<n_; ++i)
-		{	
+		{
 			UInt count=0;
 			for(auto j=0; j<p_ ; ++j)
 			{
@@ -98,12 +91,13 @@ void FPCAData::setDatamatrix(SEXP Rdatamatrix)
 
 }
 
-
-void FPCAData::setNrealizations(SEXP Rnrealizations) {
+template<UInt ndim>
+void FPCAData<ndim>::setNrealizations(SEXP Rnrealizations) {
 	nrealizations_ = INTEGER(Rnrealizations)[0];
 }
 
-void FPCAData::setIncidenceMatrix(SEXP RincidenceMatrix)
+template<UInt ndim>
+void FPCAData<ndim>::setIncidenceMatrix(SEXP RincidenceMatrix)
 {
 	nRegions_ = INTEGER(Rf_getAttrib(RincidenceMatrix, R_DimSymbol))[0];
 	UInt p = INTEGER(Rf_getAttrib(RincidenceMatrix, R_DimSymbol))[1];
@@ -120,8 +114,8 @@ void FPCAData::setIncidenceMatrix(SEXP RincidenceMatrix)
 }
 #endif
 
-
-void FPCAData::printDatamatrix(std::ostream & out) const
+template<UInt ndim>
+void FPCAData<ndim>::printDatamatrix(std::ostream & out) const
 {
 
 	for(auto i=0;i<datamatrix_.rows(); i++)
@@ -138,17 +132,19 @@ void FPCAData::printDatamatrix(std::ostream & out) const
 {    	datamatrix_=scores_*loadings_.transpose();
 }
 */
-void FPCAData::printLocations(std::ostream & out) const
+template<UInt ndim>
+void FPCAData<ndim>::printLocations(std::ostream & out) const
 {
 
-	for(std::vector<Point>::size_type i=0;i<locations_.size(); i++)
+	for(int i=0; i<locations_.size(); i++)
 	{
-		locations_[i].print(out);
+		out<<locations_[i];
 		//std::cout<<std::endl;
 	}
 }
 
-void FPCAData::printIncidenceMatrix(std::ostream & out) const
+template<UInt ndim>
+void FPCAData<ndim>::printIncidenceMatrix(std::ostream & out) const
 {
 	for (auto i=0; i<incidenceMatrix_.rows(); i++)
 	{
@@ -162,4 +158,3 @@ void FPCAData::printIncidenceMatrix(std::ostream & out) const
 
 
 #endif
-

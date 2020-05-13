@@ -123,7 +123,6 @@ void Element<NNODES,mydim,ndim>::computeProperties(std::false_type)
 template <UInt NNODES, UInt mydim, UInt ndim>
 void Element<NNODES,mydim,ndim>::computeProperties(std::true_type)
 {
-	std::cout<<"ciao"<<std::endl;
 	{
 		EigenMap2Const_t basePoint(&points_[0][0]);
 		for (int i=0; i<2; ++i)

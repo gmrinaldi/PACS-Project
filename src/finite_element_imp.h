@@ -88,17 +88,34 @@ FiniteElement<Integrator, ORDER, mydim, ndim>::grad_impl(UInt iq, const Eigen::M
 // This function evaluates the basis function on the reference element
 // at the quadrature nodes
 // This function covers all order 1 cases
-template<UInt NBASES, UInt mydim>
-Eigen::Matrix<Real, NBASES, 1> reference_eval_point(const Point<mydim> &node){
-	Eigen::Matrix<Real, NBASES, 1> phi;
-	phi.template tail<mydim>()=Eigen::Map<const Eigen::Matrix<Real,mydim,1> >(&node[0]);
-	phi(0) = 1 - phi.template tail<mydim>().sum();
+// template<UInt NBASES, UInt mydim>
+// Eigen::Matrix<Real, NBASES, 1> reference_eval_point(const Point<mydim> &node){
+// 	Eigen::Matrix<Real, NBASES, 1> phi;
+// 	phi.template tail<mydim>()=Eigen::Map<const Eigen::Matrix<Real,mydim,1> >(&node[0]);
+// 	phi(0) = 1 - phi.template tail<mydim>().sum();
+// 	return phi;
+// }
+
+template<>
+inline Eigen::Matrix<Real, 3, 1> reference_eval_point(const Point<2> &node){
+	Eigen::Matrix<Real, 3, 1> phi;
+	phi.template tail<2>()=Eigen::Map<const Eigen::Matrix<Real,2,1> >(&node[0]);
+	phi(0) = 1 - phi.template tail<2>().sum();
 	return phi;
 }
 
+template<>
+inline Eigen::Matrix<Real, 4, 1> reference_eval_point(const Point<3> &node){
+	Eigen::Matrix<Real, 4, 1> phi;
+	phi.template tail<3>()=Eigen::Map<const Eigen::Matrix<Real,3,1> >(&node[0]);
+	phi(0) = 1 - phi.template tail<3>().sum();
+	return phi;
+}
+
+
 // Full specialization for order 2 in 2D and 2.5D (same reference element!)
 template<>
-Eigen::Matrix<Real, 6, 1> reference_eval_point<6,2>(const Point<2> &node){
+inline Eigen::Matrix<Real, 6, 1> reference_eval_point<6,2>(const Point<2> &node){
 	Eigen::Matrix<Real, 6, 1> phi;
 	phi << (1-node[0]-node[1]) * (1-2*node[0]-2*node[1]),
 										 node[0] * (2*node[0]-1),
@@ -111,7 +128,7 @@ Eigen::Matrix<Real, 6, 1> reference_eval_point<6,2>(const Point<2> &node){
 
 // Full specialization for order 2 in 3D
 template<>
-Eigen::Matrix<Real, 10, 1> reference_eval_point<10,3>(const Point<3> &node){
+inline Eigen::Matrix<Real, 10, 1> reference_eval_point<10,3>(const Point<3> &node){
 	Eigen::Matrix<Real, 10, 1> phi;
 	phi << (1-node[0]-node[1]-node[2]) * (1-2*node[0]-2*node[1]-2*node[2]),
 														 node[0] * (2*node[0]-1),
@@ -129,17 +146,34 @@ Eigen::Matrix<Real, 10, 1> reference_eval_point<10,3>(const Point<3> &node){
 // This function evaluates the ndim-gradient of basis function on the reference element
 // at the quadrature nodes
 // This function covers all order 1 cases
-template<UInt NBASES, UInt mydim>
-Eigen::Matrix<Real, NBASES,mydim> reference_eval_der_point(const Point<mydim> &node){
-	Eigen::Matrix<Real,NBASES,mydim> B1;
+// template<UInt NBASES, UInt mydim>
+// Eigen::Matrix<Real, NBASES,mydim> reference_eval_der_point(const Point<mydim> &node){
+// 	Eigen::Matrix<Real,NBASES,mydim> B1;
+// 	B1.row(0).setConstant(-1);
+// 	B1.bottomRows(mydim).setIdentity();
+// 	return B1;
+// }
+
+template<>
+inline Eigen::Matrix<Real, 3,2> reference_eval_der_point(const Point<2> &node){
+	Eigen::Matrix<Real,3,2> B1;
 	B1.row(0).setConstant(-1);
-	B1.bottomRows(mydim).setIdentity();
+	B1.bottomRows(2).setIdentity();
 	return B1;
 }
 
+template<>
+inline Eigen::Matrix<Real, 4,3> reference_eval_der_point(const Point<3> &node){
+	Eigen::Matrix<Real,4,3> B1;
+	B1.row(0).setConstant(-1);
+	B1.bottomRows(3).setIdentity();
+	return B1;
+}
+
+
 // Full specialization for order 2 in 2D and 2.5D
 template<>
-Eigen::Matrix<Real, 6,2> reference_eval_der_point<6,2>(const Point<2> &node){
+inline Eigen::Matrix<Real, 6,2> reference_eval_der_point<6,2>(const Point<2> &node){
 	Eigen::Matrix<Real,6,2> B2;
 	B2 << 1-4*(1-node[0]-node[1]), 1-4*(1-node[0]-node[1]),
 										4*node[0]-1, 											 0,
@@ -152,7 +186,7 @@ Eigen::Matrix<Real, 6,2> reference_eval_der_point<6,2>(const Point<2> &node){
 
 // Full specialization for order 2 in 3D
 template<>
-Eigen::Matrix<Real, 10,3> reference_eval_der_point<10,3>(const Point<3> &node){
+inline Eigen::Matrix<Real, 10,3> reference_eval_der_point<10,3>(const Point<3> &node){
 	Eigen::Matrix<Real,10,3> B2;
 	B2 << 1-4*(1-node[0]-node[1]-node[2]), 	1-4*(1-node[0]-node[1]-node[2]), 1-4*(1-node[0]-node[1]-node[2]),
 														4*node[0]-1, 		 			 						          0,															 0,
