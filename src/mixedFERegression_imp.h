@@ -617,7 +617,7 @@ void MixedFERegressionBase<InputHandler,Integrator,ORDER, mydim, ndim>::apply(EO
 	setA();
 	setPsi();
 
-	if(!regressionData_.getCovariates().rows() == 0)
+	if(regressionData_.getCovariates().rows() != 0)
 	{
 		setH();
 		setQ();

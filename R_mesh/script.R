@@ -5,15 +5,15 @@ triangles2_5D<-cbind(seq_len(testN-2),seq_len(testN-2)+1,seq_len(testN-2)+2)
 # triangles2_5D<-rbind(triangles2_5D,cbind(seq_len(testN-2),seq_len(testN-2)+2,seq_len(testN-2)+3))
 triangles3D<-cbind(seq_len(testN-3),seq_len(testN-3)+1,seq_len(testN-3)+2,seq_len(testN-3)+3)
 
-library(fdaPDE)
+library(pacsColliColombo)
 library(Rcpp)
 
 setwd("~/Desktop/PACS/Progetto/PACS-Project/R_mesh")
 sourceCpp("R_mesh.cpp")
 
 data(hub2.5D)
-edges_CPP<-R_mesh_helper_2_5D(hub2.5D.triangles,hub2.5D.nodes,nrow(hub2.5D.nodes))
-
+edges_CPP<-R_mesh_helper_2_5D(hub2.5D.triangles,hub2.5D.nodes,nrow(hub2.5D.nodes),FALSE)
+edges_R<-create.mesh.2.5D(hub2.5D.nodes,hub2.5D.triangles, order=2)
 data(sphere3Ddata)
 
 nodes=sphere3Ddata$nodes

@@ -15,7 +15,7 @@
 #' @export
 #' @seealso \code{\link{FEM}}, \code{\link{image.FEM}}
 #' @examples
-#' library(fdaPDE)
+#' library(PACSProject)
 #' ## Upload the horseshoe2D data
 #' data(horseshoe2D)
 #'
@@ -60,7 +60,7 @@ plot.FEM <- function(FEMobject, num_refinements = NULL, ...)
 #' @usage \method{plot}{mesh.2D}(mesh, ...)
 #' @export
 #' @examples
-#' library(fdaPDE)
+#' library(PACSProject)
 #'
 #' ## Upload the quasicirle2D data
 #' data(quasicircle2D)
@@ -87,7 +87,7 @@ plot.mesh.2D<-function(mesh, ...)
 
 #' @usage \method{plot}{mesh.2.5D}(mesh, ...)
 #' @examples
-#' library(fdaPDE)
+#' library(PACSProject)
 #'
 #' ## Upload the hub2.5D the data
 #' data(hub2.5D)
@@ -125,7 +125,7 @@ plot.mesh.2.5D<-function(mesh,...){
 
 #' @usage \method{plot}{mesh.3D}(mesh, ...)
 #' @examples
-#' library(fdaPDE)
+#' library(PACSProject)
 #'
 #' ##Load a mesh.3D object
 #' data(sphere3D)
@@ -135,8 +135,9 @@ plot.mesh.2.5D<-function(mesh,...){
 
 plot.mesh.3D<-function(mesh,...){
    
-   nodes < -mesh$nodes
-   faces <- as.vector(t(mesh$faces))
+   nodes <- mesh$nodes
+   faces <- as.vector(t(mesh$faces[as.logical(mesh$facesmarkers),]))
+   edges <- as.vector(t(mesh$edges[as.logical(mesh$edgesmarkers),]))
    
    open3d()
    axes3d()
@@ -144,6 +145,8 @@ plot.mesh.3D<-function(mesh,...){
    light3d(specular="black")
    
    rgl.triangles(nodes[faces,1],nodes[faces,2],nodes[faces,3],col="white",...)
+   rgl.points(nodes[,1], nodes[,2], nodes[,3], col="black", ...)
+   rgl.lines(nodes[edges,1], nodes[edges,2], nodes[edges,3], col="black",...)
    
    aspect3d("iso")
    rgl.viewpoint(0,-45)
@@ -314,7 +317,7 @@ R_plot_volume <- function(FEM,...){
 #' @seealso \code{\link{FEM}} \code{\link{plot.FEM}}
 #' @export
 #' @examples
-#' library(fdaPDE)
+#' library(PACSProject)
 #' ## Upload the horseshoe2D data
 #' data(horseshoe2D)
 #'

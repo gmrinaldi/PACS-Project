@@ -96,7 +96,7 @@ public:
   UInt get_num_points() const {return num_points;}
   UInt get_num_elements() const {return num_elements;}
 
-protected:
+private:
   std::vector<simplex_t> simplexes;
   std::vector<bool> duplicates;
   std::vector<UInt> distinct_indexes;
@@ -238,7 +238,6 @@ void simplex_container<mydim>::bin_sort(){
   positions.reserve(simplexes.size());
   for(UInt i=0; i<simplexes.size(); ++i)
     positions.push_back(i);
-
   bin_sort_(mydim-1, positions);
 
   for(UInt i=0; i<positions.size(); ++i){
@@ -316,7 +315,7 @@ std::vector<UInt> order2extend(const simplex_container<2> &edge_container){
   {
     UInt i=0;
     for(auto const &curr : edge_container){
-      offset+= !edge_container.is_repeated(i);
+      offset += !edge_container.is_repeated(i);
       edges_extended[curr.i()+edge_container.get_num_elements()*curr.j()]=offset;
       ++i;
     }
@@ -333,10 +332,108 @@ std::vector<double> compute_midpoints(const double* const points, const std::vec
   return midpoints;
 }
 
-// std::vector<UInt> split(simplex_container<2> &edge_container){
-//   std::vector<UInt> edges_extended(order2extend(edge_container));
-//
-// }
+std::vector<UInt> split(simplex_container<2> &edge_container, std::vector<UInt> triangles){
+  std::vector<UInt> extended{order2extend(edge_container)};
+  triangles.insert(triangles.end(), extended.begin(), extended.end());
+
+  const UInt num_edges=triangles.size()/6;
+  std::vector<UInt> splitted_elements;
+  splitted_elements.reserve(12*num_edges);
+
+  for (auto const j : {0,1,2,3})
+    for (int i=0; i<num_edges; ++i)
+      splitted_elements.push_back(triangles[i+j*num_edges]);
+
+  for (auto const j : {5,3,4,4})
+    for (int i=0; i<num_edges; ++i)
+      splitted_elements.push_back(triangles[i+j*num_edges]);
+
+  for (auto const j : {4,5,3,5})
+    for (int i=0; i<num_edges; ++i)
+      splitted_elements.push_back(triangles[i+j*num_edges]);
+
+  return splitted_elements;
+}
+
+std::vector<UInt> split3D(simplex_container<2> &edge_container, std::vector<UInt> tetrahedrons){
+  std::vector<UInt> extended{order2extend(edge_container)};
+  tetrahedrons.insert(tetrahedrons.end(), extended.begin(), extended.end());
+
+  const UInt num_edges=tetrahedrons.size()/10;
+  std::vector<UInt> splitted_elements;
+  splitted_elements.reserve(32*num_edges);
+
+  for (auto const j : {0,4,5,6,4,4,5,5})
+    for (int i=0; i<num_edges; ++i)
+      splitted_elements.push_back(tetrahedrons[i+j*num_edges]);
+
+  for (auto const j : {4,1,7,9,5,5,6,7})
+    for (int i=0; i<num_edges; ++i)
+      splitted_elements.push_back(tetrahedrons[i+j*num_edges]);
+
+  for (auto const j : {5,7,2,8,6,7,9,9})
+    for (int i=0; i<num_edges; ++i)
+      splitted_elements.push_back(tetrahedrons[i+j*num_edges]);
+
+  for (auto const j : {6,9,8,3,9,9,8,8})
+    for (int i=0; i<num_edges; ++i)
+      splitted_elements.push_back(tetrahedrons[i+j*num_edges]);
+
+  return splitted_elements;
+}
+
+
+// [[Rcpp::export]]
+IntegerVector R_split_triangles(IntegerVector triangles, UInt num_points){
+
+  const UInt n=triangles.length(), num_triangles=n/3;
+
+  std::vector<UInt> CPP_triangles;
+  CPP_triangles.reserve(n);
+  for(UInt i=0; i<n; ++i)
+    CPP_triangles.push_back(triangles[i]);
+
+  // edges will contain arrays of this form: (node1, node2, triangleID, edgeID)
+  // where triangleID tells which triangle the edge belongs to and edgeID tells
+  // which node is in front of the edge (eg 1 if edge (2,3) )
+  simplex_container<2> edges_list(&triangles[0],num_triangles,num_points);
+
+  std::vector<UInt> splitted=split(edges_list,CPP_triangles);
+
+  IntegerVector R_splitted(splitted.size());
+  for(UInt i=0; i<splitted.size(); ++i)
+    R_splitted[i]=splitted[i];
+
+  return R_splitted;
+}
+
+// [[Rcpp::export]]
+IntegerVector R_split_tetrahedrons(IntegerVector tetrahedrons, UInt num_points){
+
+  const UInt n=tetrahedrons.length(), num_tetrahedrons=n/4;
+
+  std::vector<UInt> CPP_tetrahedrons;
+  CPP_tetrahedrons.reserve(n);
+  for(UInt i=0; i<n; ++i)
+    CPP_tetrahedrons.push_back(tetrahedrons[i]);
+
+
+  // edges will contain arrays of this form: (node1, node2, tetrahedronID, edgeID)
+  // where tetrahedronID tells which tetrahedron the edge belongs to and edgeID tells
+  // which node is in front of the edge (eg 1 if edge (2,3) )
+  simplex_container<2> edges_list(&tetrahedrons[0],num_tetrahedrons,num_points,{0,1,0,2,0,3,1,2,2,3,1,3});
+
+  std::vector<UInt> splitted=split3D(edges_list,CPP_tetrahedrons);
+
+  IntegerVector R_splitted(splitted.size());
+  for(UInt i=0; i<splitted.size(); ++i)
+    R_splitted[i]=splitted[i];
+
+  return R_splitted;
+
+}
+
+
 
 
 
