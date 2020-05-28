@@ -19,33 +19,33 @@ MeshHandler<ORDER,mydim,ndim>::MeshHandler(SEXP mesh)
 #endif
 
 template <UInt ORDER, UInt mydim, UInt ndim>
-inline Point<ndim> MeshHandler<ORDER,mydim,ndim>::getPoint(Id id) const
+inline Point<ndim> MeshHandler<ORDER,mydim,ndim>::getPoint(UInt id) const
 {
 	return Point<ndim>(id, points_, num_nodes_);
 }
 
 template <UInt ORDER, UInt mydim, UInt ndim>
-typename MeshHandler<ORDER,mydim,ndim>::meshElement MeshHandler<ORDER,mydim,ndim>::getElement(Id id) const
+typename MeshHandler<ORDER,mydim,ndim>::meshElement MeshHandler<ORDER,mydim,ndim>::getElement(UInt id) const
 {
 	typename meshElement::elementPoints elPoints;
 	for (int i=0; i<how_many_nodes(ORDER,mydim); ++i)
-		elPoints[i] = this->getPoint(elements_[id + i*num_elements_]);
+		elPoints[i] = getPoint(elements_[id + i*num_elements_]);
 	return meshElement(id,elPoints);
 }
 
 template <UInt ORDER, UInt mydim, UInt ndim>
-typename MeshHandler<ORDER,mydim,ndim>::meshElement MeshHandler<ORDER,mydim,ndim>::getNeighbors(Id id_element, UInt number) const
+typename MeshHandler<ORDER,mydim,ndim>::meshElement MeshHandler<ORDER,mydim,ndim>::getNeighbors(UInt id_element, UInt number) const
 {
-	Id id_neighbor{neighbors_[id_element + number * num_elements_]};
+	UInt id_neighbor{neighbors_[id_element + number * num_elements_]};
 	//return empty element if "neighbor" not present (out of boundary!)
-	return (id_neighbor==-1) ? meshElement() : this->getElement(id_neighbor);
+	return (id_neighbor==-1) ? meshElement() : getElement(id_neighbor);
 }
 
 template <UInt ORDER, UInt mydim, UInt ndim>
 typename MeshHandler<ORDER,mydim,ndim>::meshElement MeshHandler<ORDER,mydim,ndim>::findLocationNaive(const Point<ndim>& point) const
 {
-	for(Id id=0; id < num_elements_; ++id){
-		meshElement current_element{this->getElement(id)};
+	for(UInt id=0; id < num_elements_; ++id){
+		meshElement current_element{getElement(id)};
 		if(current_element.isPointInside(point))
 			return current_element;
 	}
@@ -62,7 +62,7 @@ MeshHandler<ORDER,mydim,ndim>::findLocationWalking(const Point<ndim>& point, con
 	meshElement current_element{starting_element};
 	//Test for found Element, or out of border
 	while(current_element.hasValidId() && !current_element.isPointInside(point))
-		current_element = this->getNeighbors(current_element.getId(), current_element.getPointDirection(point));
+		current_element = getNeighbors(current_element.getId(), current_element.getPointDirection(point));
 
 	return current_element;
 }
@@ -77,13 +77,13 @@ MeshHandler<ORDER,mydim,ndim>::find_closest(const std::vector<Point<3> > &points
 	closest_ID.reserve(points.size());
 
 	//exclude midpoints in order 2
-	const UInt num_actual_nodes = (ORDER==1) ? this->num_nodes_ : this->num_nodes_ - this->num_sides_;
+	const UInt num_actual_nodes = (ORDER==1) ? num_nodes_ : num_nodes_ - num_sides_;
 
 	for(auto const &point : points){
 		UInt min_pos;
 		Real min_dist{std::numeric_limits<Real>::max()};
 		for(int i=0; i<num_actual_nodes; ++i){
-			Real distance{point.dist2(this->getPoint(i))};
+			Real distance{point.dist2(getPoint(i))};
 			if(distance<min_dist){
 				min_dist=distance;
 				min_pos=i;
@@ -105,21 +105,21 @@ MeshHandler<ORDER,mydim,ndim>::project(const std::vector<Point<3> > &points) con
 
 	for(auto const &point : points){
 		// First find the closest node for the current point
-		UInt closest_node{this->find_closest(point)};
+		UInt closest_node{find_closest(point)};
 
 		// Second build up a patch of elements onto which to project
 		std::vector<UInt> patch;
 		// Conservative estimate to avoid reallocation in most cases
 		patch.reserve(18);
-		for(int i=0; i<3*this->num_elements_; ++i)
-			if(closest_node==this->elements_[i])
-				patch.push_back(i%this->num_elements_);
+		for(int i=0; i<3*num_elements_; ++i)
+			if(closest_node==elements_[i])
+				patch.push_back(i%num_elements_);
 
 		// Third compute the projections on the elements in the patch and keep the closest
 		Real min_dist{std::numeric_limits<Real>::max()};
 		Point<3> proj_point;
 		for(auto const &i : patch){
-			Element<how_many_nodes(ORDER,2),2,3> current_element{this->getElement(i)};
+			Element<how_many_nodes(ORDER,2),2,3> current_element{getElement(i)};
 			Point<3> curr_proj{current_element.computeProjection(point)};
 			Real distance{point.dist2(curr_proj)};
 			if(distance<min_dist){

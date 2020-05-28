@@ -6,6 +6,8 @@
 #include "mesh_objects.h"
 #include "mesh.h"
 #include "finite_element.h"
+#include "param_functors.h"
+#include "pde_expression_templates.h"
 #include "matrix_assembler.h"
 #include "FPCAData.h"
 #include "FPCAObject.h"
@@ -16,11 +18,11 @@
 #include "mixedFERegression.h"
 #include "mixedFEFPCAfactory.h"
 
-template<typename InputHandler, typename Integrator, UInt ORDER, UInt mydim, UInt ndim>
+template<typename InputHandler, UInt ORDER, UInt mydim, UInt ndim>
 SEXP regression_skeleton(InputHandler &regressionData, SEXP Rmesh)
 {
 	MeshHandler<ORDER, mydim, ndim> mesh(Rmesh);
-	MixedFERegression<InputHandler, Integrator,ORDER, mydim, ndim> regression(mesh,regressionData);
+	MixedFERegression<InputHandler,ORDER, mydim, ndim> regression(mesh,regressionData);
 
 	regression.apply();
 
@@ -48,13 +50,13 @@ SEXP regression_skeleton(InputHandler &regressionData, SEXP Rmesh)
 	return(result);
 }
 
-template<typename Integrator,UInt ORDER, UInt mydim, UInt ndim>
+template<UInt ORDER, UInt mydim, UInt ndim>
 SEXP FPCA_skeleton(FPCAData<ndim> &fPCAData, SEXP Rmesh, std::string validation)
 {
 
 	MeshHandler<ORDER, mydim, ndim> mesh(Rmesh);
 
-	std::unique_ptr<MixedFEFPCABase<Integrator, ORDER, mydim, ndim>> fpca = MixedFEFPCAfactory<Integrator, ORDER, mydim, ndim>::createFPCAsolver(validation, mesh, fPCAData);
+	std::unique_ptr<MixedFEFPCABase<ORDER, mydim, ndim>> fpca = MixedFEFPCAfactory<ORDER, mydim, ndim>::createFPCAsolver(validation, mesh, fPCAData);
 
 	fpca->apply();
 
@@ -117,11 +119,12 @@ SEXP FPCA_skeleton(FPCAData<ndim> &fPCAData, SEXP Rmesh, std::string validation)
 }
 
 
-template<typename Integrator, UInt ORDER, UInt mydim, UInt ndim>
+template<UInt ORDER, UInt mydim, UInt ndim>
 SEXP get_integration_points_skeleton(SEXP Rmesh)
 {
 	MeshHandler<ORDER, mydim, ndim> mesh(Rmesh);
-	FiniteElement<Integrator,ORDER, mydim, ndim> fe;
+	FiniteElement<ORDER, mydim, ndim> fe;
+	using Integrator = typename FiniteElement<ORDER, mydim, ndim>::Integrator;
 
 	SEXP result;
 	PROTECT(result=Rf_allocVector(REALSXP, 2*Integrator::NNODES*mesh.num_elements()));
@@ -140,12 +143,12 @@ SEXP get_integration_points_skeleton(SEXP Rmesh)
 	return(result);
 }
 
-template<typename Integrator, UInt ORDER, UInt mydim, UInt ndim, typename A>
+template<UInt ORDER, UInt mydim, UInt ndim, typename A>
 SEXP get_FEM_Matrix_skeleton(SEXP Rmesh, EOExpr<A> oper)
 {
 	MeshHandler<ORDER, mydim, ndim> mesh(Rmesh);
 
-	FiniteElement<Integrator, ORDER, mydim, ndim> fe;
+	FiniteElement<ORDER, mydim, ndim> fe;
 
 	SpMat AMat;
 	Assembler::operKernel(oper, mesh, fe, AMat);
@@ -207,27 +210,27 @@ SEXP regression_Laplace(SEXP Rlocations, SEXP Robservations, SEXP Rmesh, SEXP Ro
 	if(order==1 && mydim==2 && ndim==2)
 	{
 		RegressionData<2> regressionData(Rlocations, Robservations, Rorder, Rlambda, Rcovariates, RincidenceMatrix, RBCIndices, RBCValues, DOF, RGCVmethod, Rnrealizations);
-		return(regression_skeleton<RegressionData<2>,IntegratorTriangleP2, 1, 2, 2>(regressionData, Rmesh));
+		return(regression_skeleton<RegressionData<2>, 1, 2, 2>(regressionData, Rmesh));
 	}
 	else if(order==2 && mydim==2 && ndim==2)
 	{
 		RegressionData<2> regressionData(Rlocations, Robservations, Rorder, Rlambda, Rcovariates, RincidenceMatrix, RBCIndices, RBCValues, DOF, RGCVmethod, Rnrealizations);
-		return(regression_skeleton<RegressionData<2>,IntegratorTriangleP4, 2, 2, 2>(regressionData, Rmesh));
+		return(regression_skeleton<RegressionData<2>, 2, 2, 2>(regressionData, Rmesh));
 	}
 	else if(order==1 && mydim==2 && ndim==3)
 	{
 		RegressionData<3> regressionData(Rlocations, Robservations, Rorder, Rlambda, Rcovariates, RincidenceMatrix, RBCIndices, RBCValues, DOF, RGCVmethod, Rnrealizations);
-		return(regression_skeleton<RegressionData<3>,IntegratorTriangleP2, 1, 2, 3>(regressionData, Rmesh));
+		return(regression_skeleton<RegressionData<3>, 1, 2, 3>(regressionData, Rmesh));
 	}
 	else if(order==2 && mydim==2 && ndim==3)
 	{
 		RegressionData<3> regressionData(Rlocations, Robservations, Rorder, Rlambda, Rcovariates, RincidenceMatrix, RBCIndices, RBCValues, DOF, RGCVmethod, Rnrealizations);
-		return(regression_skeleton<RegressionData<3>,IntegratorTriangleP4, 2, 2, 3>(regressionData, Rmesh));
+		return(regression_skeleton<RegressionData<3>, 2, 2, 3>(regressionData, Rmesh));
 	}
 	else if(order==1 && mydim==3 && ndim==3)
 	{
 		RegressionData<3> regressionData(Rlocations, Robservations, Rorder, Rlambda, Rcovariates, RincidenceMatrix, RBCIndices, RBCValues, DOF, RGCVmethod, Rnrealizations);
-		return(regression_skeleton<RegressionData<3>,IntegratorTetrahedronP2, 1, 3, 3>(regressionData, Rmesh));
+		return(regression_skeleton<RegressionData<3>, 1, 3, 3>(regressionData, Rmesh));
 	}
 
 	return(NILSXP);
@@ -266,22 +269,22 @@ SEXP regression_PDE(SEXP Rlocations, SEXP Robservations, SEXP Rmesh, SEXP Rorder
 	if(order == 1 && ndim==2)
 	{
 		RegressionDataElliptic<2> regressionData(Rlocations, Robservations, Rorder, Rlambda, RK, Rbeta, Rc, Rcovariates, RincidenceMatrix, RBCIndices, RBCValues, DOF, RGCVmethod, Rnrealizations);
-		return(regression_skeleton<RegressionDataElliptic<2>,IntegratorTriangleP2, 1, 2, 2>(regressionData, Rmesh));
+		return(regression_skeleton<RegressionDataElliptic<2>, 1, 2, 2>(regressionData, Rmesh));
 	}
 	else if(order == 2 && ndim==2)
 	{
 		RegressionDataElliptic<2> regressionData(Rlocations, Robservations, Rorder, Rlambda, RK, Rbeta, Rc, Rcovariates, RincidenceMatrix, RBCIndices, RBCValues, DOF, RGCVmethod, Rnrealizations);
-		return(regression_skeleton<RegressionDataElliptic<2>,IntegratorTriangleP4, 2, 2, 2>(regressionData, Rmesh));
+		return(regression_skeleton<RegressionDataElliptic<2>, 2, 2, 2>(regressionData, Rmesh));
 	}
 	else if(order == 1 && ndim==3)
 	{
 		RegressionDataElliptic<3> regressionData(Rlocations, Robservations, Rorder, Rlambda, RK, Rbeta, Rc, Rcovariates, RincidenceMatrix, RBCIndices, RBCValues, DOF, RGCVmethod, Rnrealizations);
-		return(regression_skeleton<RegressionDataElliptic<3>,IntegratorTriangleP2, 1, 2, 3>(regressionData, Rmesh));
+		return(regression_skeleton<RegressionDataElliptic<3>, 1, 2, 3>(regressionData, Rmesh));
 	}
 	else if(order == 2 && ndim==3)
 	{
 		RegressionDataElliptic<3> regressionData(Rlocations, Robservations, Rorder, Rlambda, RK, Rbeta, Rc, Rcovariates, RincidenceMatrix, RBCIndices, RBCValues, DOF, RGCVmethod, Rnrealizations);
-		return(regression_skeleton<RegressionDataElliptic<3>,IntegratorTriangleP4, 2, 2, 3>(regressionData, Rmesh));
+		return(regression_skeleton<RegressionDataElliptic<3>, 2, 2, 3>(regressionData, Rmesh));
 	}
 
 	return(NILSXP);
@@ -322,22 +325,22 @@ SEXP regression_PDE_space_varying(SEXP Rlocations, SEXP Robservations, SEXP Rmes
 	if(order == 1 && ndim==2)
 	{
 		RegressionDataEllipticSpaceVarying<2> regressionData(Rlocations, Robservations, Rorder, Rlambda, RK, Rbeta, Rc, Ru, Rcovariates, RincidenceMatrix, RBCIndices, RBCValues, DOF,  RGCVmethod, Rnrealizations);
-		return(regression_skeleton<RegressionDataEllipticSpaceVarying<2>,IntegratorTriangleP2, 1, 2, 2>(regressionData, Rmesh));
+		return(regression_skeleton<RegressionDataEllipticSpaceVarying<2>, 1, 2, 2>(regressionData, Rmesh));
 	}
 	else if(order == 2 && ndim==2)
 	{
 		RegressionDataEllipticSpaceVarying<2> regressionData(Rlocations, Robservations, Rorder, Rlambda, RK, Rbeta, Rc, Ru, Rcovariates, RincidenceMatrix, RBCIndices, RBCValues, DOF,  RGCVmethod, Rnrealizations);
-		return(regression_skeleton<RegressionDataEllipticSpaceVarying<2>,IntegratorTriangleP4, 2, 2, 2>(regressionData, Rmesh));
+		return(regression_skeleton<RegressionDataEllipticSpaceVarying<2>, 2, 2, 2>(regressionData, Rmesh));
 	}
 	else if(order == 1 && ndim==3)
 	{
 		RegressionDataEllipticSpaceVarying<3> regressionData(Rlocations, Robservations, Rorder, Rlambda, RK, Rbeta, Rc, Ru, Rcovariates, RincidenceMatrix, RBCIndices, RBCValues, DOF,  RGCVmethod, Rnrealizations);
-		return(regression_skeleton<RegressionDataEllipticSpaceVarying<3>,IntegratorTriangleP2, 1, 2, 3>(regressionData, Rmesh));
+		return(regression_skeleton<RegressionDataEllipticSpaceVarying<3>, 1, 2, 3>(regressionData, Rmesh));
 	}
 	else if(order == 2 && ndim==3)
 	{
 		RegressionDataEllipticSpaceVarying<3> regressionData(Rlocations, Robservations, Rorder, Rlambda, RK, Rbeta, Rc, Ru, Rcovariates, RincidenceMatrix, RBCIndices, RBCValues, DOF,  RGCVmethod, Rnrealizations);
-		return(regression_skeleton<RegressionDataEllipticSpaceVarying<3>,IntegratorTriangleP4, 2, 2, 3>(regressionData, Rmesh));
+		return(regression_skeleton<RegressionDataEllipticSpaceVarying<3>, 2, 2, 3>(regressionData, Rmesh));
 	}
 
 	return(NILSXP);
@@ -357,9 +360,9 @@ SEXP get_integration_points(SEXP Rmesh, SEXP Rorder, SEXP Rmydim, SEXP Rndim)
 	UInt ndim=INTEGER(Rndim)[0];
 //Not implemented for ndim==3
     if(order == 1 && ndim ==2)
-    	return(get_integration_points_skeleton<IntegratorTriangleP2, 1,2,2>(Rmesh));
+    	return(get_integration_points_skeleton<1,2,2>(Rmesh));
     else if(order == 2 && ndim==2)
-    	return(get_integration_points_skeleton<IntegratorTriangleP4, 2,2,2>(Rmesh));
+    	return(get_integration_points_skeleton<2,2,2>(Rmesh));
     return(NILSXP);
 }
 
@@ -376,9 +379,9 @@ SEXP get_FEM_mass_matrix(SEXP Rmesh, SEXP Rorder, SEXP Rmydim, SEXP Rndim)
 	typedef EOExpr<Mass> ETMass;   Mass EMass;   ETMass mass(EMass);
 
   if(order==1 && ndim==2)
-    return(get_FEM_Matrix_skeleton<IntegratorTriangleP2, 1,2,2>(Rmesh, mass));
+    return(get_FEM_Matrix_skeleton<1,2,2>(Rmesh, mass));
 	if(order==2 && ndim==2)
-		return(get_FEM_Matrix_skeleton<IntegratorTriangleP4, 2,2,2>(Rmesh, mass));
+		return(get_FEM_Matrix_skeleton<2,2,2>(Rmesh, mass));
 	return(NILSXP);
 }
 
@@ -394,9 +397,9 @@ SEXP get_FEM_stiff_matrix(SEXP Rmesh, SEXP Rorder, SEXP Rmydim, SEXP Rndim)
 	typedef EOExpr<Stiff> ETMass;   Stiff EStiff;   ETMass stiff(EStiff);
 
   if(order==1 && ndim==2)
-    return(get_FEM_Matrix_skeleton<IntegratorTriangleP2, 1,2,2>(Rmesh, stiff));
+    return(get_FEM_Matrix_skeleton<1,2,2>(Rmesh, stiff));
 	if(order==2 && ndim==2)
-		return(get_FEM_Matrix_skeleton<IntegratorTriangleP4, 2,2,2>(Rmesh, stiff));
+		return(get_FEM_Matrix_skeleton<2,2,2>(Rmesh, stiff));
 	return(NILSXP);
 }
 
@@ -418,9 +421,9 @@ SEXP get_FEM_PDE_matrix(SEXP Rlocations, SEXP Robservations, SEXP Rmesh, SEXP Ro
 	const Advection<2>& beta (Rbeta);
 
   if(order == 1 && ndim==2)
-    return(get_FEM_Matrix_skeleton<IntegratorTriangleP2, 1,2,2>(Rmesh, c*mass+stiff[K]+grad[beta]));
+    return get_FEM_Matrix_skeleton<1,2,2>(Rmesh, c*mass+stiff[K]+beta.dot(grad));
 	if(order == 2 && ndim==2)
-		return(get_FEM_Matrix_skeleton<IntegratorTriangleP4, 2,2,2>(Rmesh, c*mass+stiff[K]+grad[beta]));
+		return get_FEM_Matrix_skeleton<2,2,2>(Rmesh, c*mass+stiff[K]+beta.dot(grad));
 	return(NILSXP);
 }
 
@@ -441,10 +444,10 @@ SEXP get_FEM_PDE_space_varying_matrix(SEXP Rlocations, SEXP Robservations, SEXP 
 	const Diffusion<2,true>& K(RK);
 	const Advection<2,true>& beta(Rbeta);
 
-  if(order==1 && ndim==2)
-    return(get_FEM_Matrix_skeleton<IntegratorTriangleP2, 1,2,2>(Rmesh, c*mass+stiff[K]+grad[beta]));
-	if(order==2 && ndim==2)
-		return(get_FEM_Matrix_skeleton<IntegratorTriangleP4, 2,2,2>(Rmesh, c*mass+stiff[K]+grad[beta]));
+	if(order == 1 && ndim==2)
+    return get_FEM_Matrix_skeleton<1,2,2>(Rmesh, c*mass+stiff[K]+beta.dot(grad));
+	if(order == 2 && ndim==2)
+		return get_FEM_Matrix_skeleton<2,2,2>(Rmesh, c*mass+stiff[K]+beta.dot(grad));
 	return(NILSXP);
 }
 
@@ -480,27 +483,27 @@ SEXP Smooth_FPCA(SEXP Rlocations, SEXP Rdatamatrix, SEXP Rmesh, SEXP Rorder, SEX
 	if(order == 1 && mydim==2 && ndim==2)
 	{
 		FPCAData<2> fPCAdata(Rlocations, Rdatamatrix, Rorder, RincidenceMatrix, Rlambda, RnPC, RnFolds, RGCVmethod, Rnrealizations);
-		return(FPCA_skeleton<IntegratorTriangleP2, 1, 2, 2>(fPCAdata, Rmesh, validation));
+		return(FPCA_skeleton<1, 2, 2>(fPCAdata, Rmesh, validation));
 	}
 	else if(order == 2 && mydim==2 && ndim==2)
 	{
 		FPCAData<2> fPCAdata(Rlocations, Rdatamatrix, Rorder, RincidenceMatrix, Rlambda, RnPC, RnFolds, RGCVmethod, Rnrealizations);
-		return(FPCA_skeleton<IntegratorTriangleP4, 2, 2, 2>(fPCAdata, Rmesh, validation));
+		return(FPCA_skeleton<2, 2, 2>(fPCAdata, Rmesh, validation));
 	}
 	else if(order == 1 && mydim==2 && ndim==3)
 	{
 		FPCAData<3> fPCAdata(Rlocations, Rdatamatrix, Rorder, RincidenceMatrix, Rlambda, RnPC, RnFolds, RGCVmethod, Rnrealizations);
-		return(FPCA_skeleton<IntegratorTriangleP2, 1, 2, 3>(fPCAdata, Rmesh, validation));
+		return(FPCA_skeleton<1, 2, 3>(fPCAdata, Rmesh, validation));
 	}
 	else if(order == 2 && mydim==2 && ndim==3)
 	{
 		FPCAData<3> fPCAdata(Rlocations, Rdatamatrix, Rorder, RincidenceMatrix, Rlambda, RnPC, RnFolds, RGCVmethod, Rnrealizations);
-		return(FPCA_skeleton<IntegratorTriangleP4, 2, 2, 3>(fPCAdata, Rmesh, validation));
+		return(FPCA_skeleton<2, 2, 3>(fPCAdata, Rmesh, validation));
 	}
 	else if(order == 1 && mydim==3 && ndim==3)
 	{
 		FPCAData<3> fPCAdata(Rlocations, Rdatamatrix, Rorder, RincidenceMatrix, Rlambda, RnPC, RnFolds, RGCVmethod, Rnrealizations);
-		return(FPCA_skeleton<IntegratorTetrahedronP2, 1, 3, 3>(fPCAdata, Rmesh, validation));
+		return(FPCA_skeleton<1, 3, 3>(fPCAdata, Rmesh, validation));
 	}
 
 	return(NILSXP);

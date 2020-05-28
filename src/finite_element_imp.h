@@ -1,85 +1,55 @@
 #ifndef __FINITE_ELEMENT_IMP_HPP__
 #define __FINITE_ELEMENT_IMP_HPP__
 
-#include<iostream>
-
-// Template auxiliary function declaration
+// Template auxiliary function forward declaration
 template<UInt NBASES, UInt mydim>
 Eigen::Matrix<Real, NBASES, 1> reference_eval_point(const Point<mydim> &node);
 
 template<UInt NBASES, UInt mydim>
 Eigen::Matrix<Real, NBASES,mydim> reference_eval_der_point(const Point<mydim> &node);
 
-//! FE implementation
-template <class Integrator, UInt ORDER, UInt mydim, UInt ndim>
-FiniteElement<Integrator, ORDER, mydim, ndim>::FiniteElement()
+//! FEData implementation
+template <UInt ORDER, UInt mydim, UInt ndim>
+FiniteElementData<ORDER, mydim, ndim>::FiniteElementData()
 {
-	//How it will be used, it does not depend on J^-1 -> set one time
-	setPhiMaster();
-	setPhiDerMaster();
+	setPhi();
+	setPhiDer();
 }
 
-template <class Integrator, UInt ORDER, UInt mydim, UInt ndim>
-void FiniteElement<Integrator, ORDER, mydim, ndim>::updateElement(const Element<NBASES,mydim,ndim> &t)
+template <UInt ORDER, UInt mydim, UInt ndim>
+FiniteElementData<ORDER, mydim, ndim>::~FiniteElementData()
+{
+}
+
+template <UInt ORDER, UInt mydim, UInt ndim>
+void FiniteElementData<ORDER, mydim, ndim>::updateElement(const Element<NBASES,mydim,ndim> &t)
 {
 	t_ = t;
-
-	//it does depend on J^-1 -> set for each element
-	setInvTrJPhiDerMaster();
-
+	setElementPhiDer();
 }
 
-template <class Integrator, UInt ORDER, UInt mydim, UInt ndim>
-void FiniteElement<Integrator, ORDER, mydim, ndim>::setPhiMaster()
+template <UInt ORDER, UInt mydim, UInt ndim>
+void FiniteElementData<ORDER, mydim, ndim>::setPhi()
 {
 	for(UInt iq=0; iq<Integrator::NNODES; ++iq)
-		phiMapMaster_.col(iq)=reference_eval_point<NBASES,mydim>(Integrator::NODES[iq]);
+		referencePhi.col(iq) = reference_eval_point<NBASES,mydim>(Integrator::NODES[iq]);
 }
 
-template <class Integrator, UInt ORDER, UInt mydim, UInt ndim>
-void FiniteElement<Integrator, ORDER, mydim, ndim>::setPhiDerMaster()
+template <UInt ORDER, UInt mydim, UInt ndim>
+void FiniteElementData<ORDER, mydim, ndim>::setPhiDer()
 {
 	// .template is needed! See Eigen documentation regarding
 	// the template and typename keywords in C++
 	for(UInt iq=0; iq<Integrator::NNODES; ++iq)
-		phiDerMapMaster_.template block<NBASES, mydim>(0, mydim*iq)=reference_eval_der_point<NBASES,mydim>(Integrator::NODES[iq]);
+		referencePhiDer.template block<NBASES, mydim>(0, mydim*iq) = reference_eval_der_point<NBASES,mydim>(Integrator::NODES[iq]);
 }
 
-template <class Integrator, UInt ORDER, UInt mydim, UInt ndim>
-void FiniteElement<Integrator, ORDER, mydim, ndim>::setInvTrJPhiDerMaster()
+template <UInt ORDER, UInt mydim, UInt ndim>
+void FiniteElementData<ORDER, mydim, ndim>::setElementPhiDer()
 {
 	// we need J^(-T) nabla( phi)
 	for (auto iq=0; iq < Integrator::NNODES; ++iq)
-			invTrJPhiDerMapMaster_.template block<NBASES,ndim>(0,ndim*iq).noalias() = phiDerMapMaster_.template block<NBASES,mydim>(0,mydim*iq)*t_.getM_invJ();
-}
-
-template <class Integrator, UInt ORDER, UInt mydim, UInt ndim>
-typename FiniteElement<Integrator, ORDER, mydim, ndim>::return_t
-FiniteElement<Integrator, ORDER, mydim, ndim>::stiff_impl(UInt iq){
-	// compute nabla(phi) x nabla(phi) at node iq
-	return invTrJPhiDerMapMaster_.template block<NBASES,ndim>(0,ndim*iq) * invTrJPhiDerMapMaster_.template block<NBASES,ndim>(0,ndim*iq).transpose();
-}
-
-template <class Integrator, UInt ORDER, UInt mydim, UInt ndim>
-typename FiniteElement<Integrator, ORDER, mydim, ndim>::return_t
-FiniteElement<Integrator, ORDER, mydim, ndim>::stiff_anys_impl(UInt iq, const Eigen::Matrix<Real,ndim,ndim>& K){
-	// compute nabla(phi) x K nabla(phi) at node iq
-	// Memo: K is symmetric!
-	return invTrJPhiDerMapMaster_.template block<NBASES,ndim>(0,ndim*iq) * K * invTrJPhiDerMapMaster_.template block<NBASES,ndim>(0,ndim*iq).transpose();
-}
-
-template <class Integrator, UInt ORDER, UInt mydim, UInt ndim>
-typename FiniteElement<Integrator, ORDER, mydim, ndim>::return_t
-FiniteElement<Integrator, ORDER, mydim, ndim>::mass_impl(UInt iq){
-	// compute phi x phi at node iq
-	return phiMapMaster_.col(iq)*phiMapMaster_.col(iq).transpose();
-}
-
-template <class Integrator, UInt ORDER, UInt mydim, UInt ndim>
-typename FiniteElement<Integrator, ORDER, mydim, ndim>::return_t
-FiniteElement<Integrator, ORDER, mydim, ndim>::grad_impl(UInt iq, const Eigen::Matrix<Real,ndim,1>& b){
-	// compute phi x nabla(phi) x b at node iq
-	return phiMapMaster_.col(iq) * b.transpose() * invTrJPhiDerMapMaster_.template block<NBASES,ndim>(0,ndim*iq).transpose();
+			elementPhiDer.template block<NBASES,ndim>(0,ndim*iq).noalias() = referencePhiDer.template block<NBASES,mydim>(0,mydim*iq) * t_.getM_invJ();
 }
 
 
@@ -87,14 +57,6 @@ FiniteElement<Integrator, ORDER, mydim, ndim>::grad_impl(UInt iq, const Eigen::M
 // Templates for auxiliary functions
 // This function evaluates the basis function on the reference element
 // at the quadrature nodes
-// This function covers all order 1 cases
-// template<UInt NBASES, UInt mydim>
-// Eigen::Matrix<Real, NBASES, 1> reference_eval_point(const Point<mydim> &node){
-// 	Eigen::Matrix<Real, NBASES, 1> phi;
-// 	phi.template tail<mydim>()=Eigen::Map<const Eigen::Matrix<Real,mydim,1> >(&node[0]);
-// 	phi(0) = 1 - phi.template tail<mydim>().sum();
-// 	return phi;
-// }
 
 template<>
 inline Eigen::Matrix<Real, 3, 1> reference_eval_point(const Point<2> &node){
@@ -112,8 +74,6 @@ inline Eigen::Matrix<Real, 4, 1> reference_eval_point(const Point<3> &node){
 	return phi;
 }
 
-
-// Full specialization for order 2 in 2D and 2.5D (same reference element!)
 template<>
 inline Eigen::Matrix<Real, 6, 1> reference_eval_point<6,2>(const Point<2> &node){
 	Eigen::Matrix<Real, 6, 1> phi;
@@ -126,7 +86,6 @@ inline Eigen::Matrix<Real, 6, 1> reference_eval_point<6,2>(const Point<2> &node)
 	return phi;
 }
 
-// Full specialization for order 2 in 3D
 template<>
 inline Eigen::Matrix<Real, 10, 1> reference_eval_point<10,3>(const Point<3> &node){
 	Eigen::Matrix<Real, 10, 1> phi;
@@ -145,15 +104,6 @@ inline Eigen::Matrix<Real, 10, 1> reference_eval_point<10,3>(const Point<3> &nod
 
 // This function evaluates the ndim-gradient of basis function on the reference element
 // at the quadrature nodes
-// This function covers all order 1 cases
-// template<UInt NBASES, UInt mydim>
-// Eigen::Matrix<Real, NBASES,mydim> reference_eval_der_point(const Point<mydim> &node){
-// 	Eigen::Matrix<Real,NBASES,mydim> B1;
-// 	B1.row(0).setConstant(-1);
-// 	B1.bottomRows(mydim).setIdentity();
-// 	return B1;
-// }
-
 template<>
 inline Eigen::Matrix<Real, 3,2> reference_eval_der_point(const Point<2> &node){
 	Eigen::Matrix<Real,3,2> B1;
@@ -170,8 +120,6 @@ inline Eigen::Matrix<Real, 4,3> reference_eval_der_point(const Point<3> &node){
 	return B1;
 }
 
-
-// Full specialization for order 2 in 2D and 2.5D
 template<>
 inline Eigen::Matrix<Real, 6,2> reference_eval_der_point<6,2>(const Point<2> &node){
 	Eigen::Matrix<Real,6,2> B2;
@@ -184,7 +132,6 @@ inline Eigen::Matrix<Real, 6,2> reference_eval_der_point<6,2>(const Point<2> &no
 	return B2;
 }
 
-// Full specialization for order 2 in 3D
 template<>
 inline Eigen::Matrix<Real, 10,3> reference_eval_der_point<10,3>(const Point<3> &node){
 	Eigen::Matrix<Real,10,3> B2;
@@ -199,7 +146,5 @@ inline Eigen::Matrix<Real, 10,3> reference_eval_der_point<10,3>(const Point<3> &
 															4*node[2],																0,											 4*node[0];
 	return B2;
 }
-
-
 
 #endif

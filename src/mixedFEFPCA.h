@@ -14,7 +14,7 @@
 
 //! A virtual Base class for the implementation of the SF-PCA algorithm: it contains some methods useful for the construction and the resolution of the linear system that has to be done iteratively in the algorithm.
 
-template<typename Integrator, UInt ORDER, UInt mydim, UInt ndim>
+template<UInt ORDER, UInt mydim, UInt ndim>
 class MixedFEFPCABase
 {
 protected:
@@ -118,12 +118,12 @@ public:
 
 
 //! A class for the implementation of the SF-PCA algorithm without the use of a cross-validation method for the selection of the parameter lambda
-template<typename Integrator, UInt ORDER, UInt mydim, UInt ndim>
-class MixedFEFPCA : public MixedFEFPCABase<Integrator, ORDER, mydim, ndim>
+template<UInt ORDER, UInt mydim, UInt ndim>
+class MixedFEFPCA : public MixedFEFPCABase<ORDER, mydim, ndim>
 {
 public:
 	//!A constructor.
-	MixedFEFPCA(const MeshHandler<ORDER, mydim, ndim>& mesh, const FPCAData<ndim>& fpcaData):MixedFEFPCABase<Integrator, ORDER, mydim, ndim>(mesh, fpcaData){};
+	MixedFEFPCA(const MeshHandler<ORDER, mydim, ndim>& mesh, const FPCAData<ndim>& fpcaData):MixedFEFPCABase<ORDER, mydim, ndim>(mesh, fpcaData) {};
 
 	//!A Destructor.
 	virtual ~MixedFEFPCA(){};
@@ -133,8 +133,8 @@ public:
 };
 
 //! A class for the implementation of the SF-PCA algorithm with the GCV used as cross-validation method for the selection of the parameter lambda
-template<typename Integrator, UInt ORDER, UInt mydim, UInt ndim>
-class MixedFEFPCAGCV: public MixedFEFPCABase<Integrator, ORDER, mydim, ndim>
+template<UInt ORDER, UInt mydim, UInt ndim>
+class MixedFEFPCAGCV: public MixedFEFPCABase<ORDER, mydim, ndim>
 {
 protected:
 	std::vector<VectorXr> loadings_lambda_;
@@ -158,7 +158,7 @@ protected:
 	void computeDegreesOfFreedom(UInt output_index);
 public:
 	//!A Constructor.
-	MixedFEFPCAGCV(const MeshHandler<ORDER, mydim, ndim>& mesh, const FPCAData<ndim>& fpcaData):MixedFEFPCABase<Integrator, ORDER, mydim, ndim>(mesh, fpcaData){};
+	MixedFEFPCAGCV(const MeshHandler<ORDER, mydim, ndim>& mesh, const FPCAData<ndim>& fpcaData):MixedFEFPCABase<ORDER, mydim, ndim>(mesh, fpcaData){};
 
 	//!A Destructor.
 	virtual ~MixedFEFPCAGCV(){};
@@ -171,8 +171,8 @@ public:
 };
 
 //! A class for the implementation of the SF-PCA algorithm with the K-Fold used as cross-validation method for the selection of the parameter lamb
-template<typename Integrator, UInt ORDER, UInt mydim, UInt ndim>
-class MixedFEFPCAKFold : public MixedFEFPCABase<Integrator, ORDER, mydim, ndim>
+template<UInt ORDER, UInt mydim, UInt ndim>
+class MixedFEFPCAKFold : public MixedFEFPCABase<ORDER, mydim, ndim>
 {
 protected:
 	std::vector<Real> KFold_;
@@ -182,7 +182,7 @@ protected:
 	void computeKFolds(MatrixXr & datamatrixResiduals_, UInt lambda_index, UInt nnodes,UInt nFolds);
 public:
 	//!A Constructor.
-	MixedFEFPCAKFold(const MeshHandler<ORDER, mydim, ndim>& mesh, const FPCAData<ndim>& fpcaData):MixedFEFPCABase<Integrator, ORDER, mydim, ndim>(mesh, fpcaData){};
+	MixedFEFPCAKFold(const MeshHandler<ORDER, mydim, ndim>& mesh, const FPCAData<ndim>& fpcaData):MixedFEFPCABase<ORDER, mydim, ndim>(mesh, fpcaData){};
 
 	//!A Destructor.
 	virtual ~MixedFEFPCAKFold(){};

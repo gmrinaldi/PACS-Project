@@ -7,7 +7,18 @@
 #ifndef PARAM_FUNCTORS_H_
 #define PARAM_FUNCTORS_H_
 
-template <UInt ndim, bool is_space_varying = false>
+template <UInt ORDER, UInt mydim, UInt ndim>
+class FiniteElement;
+
+template<typename A>
+class EOExpr;
+
+struct Stiff;
+struct Grad;
+struct Mass;
+
+
+template <UInt ndim, bool is_SV = false>
 struct Diffusion{
   using diffusion_matr = Eigen::Matrix<Real,ndim,ndim>;
 
@@ -20,11 +31,14 @@ struct Diffusion{
   }
   #endif
 
-	const diffusion_matr& operator()() const {return K_;}
+  template<UInt ORDER, UInt mydim, UInt WRONG>
+  auto operator() (const FiniteElement<ORDER,mydim,WRONG>& fe_, UInt iq) const -> decltype(fe_.stiff_impl(iq, diffusion_matr())) {
+    static_assert(ndim==WRONG, "ERROR! INCOMPATIBLE DIMENSIONS OF DIFFUSION PARAMETER AND FINITE ELEMENT! See param_functors.h");
+    return fe_.stiff_impl(iq, K_);
+  }
 
 private:
   diffusion_matr K_;
-
 };
 
 template <UInt ndim>
@@ -44,14 +58,19 @@ struct Diffusion<ndim, true>{
 	}
 	#endif
 
-	const diffusion_matr& operator()(UInt globalNodeIndex) const {return K_[globalNodeIndex];}
+  template<UInt ORDER, UInt mydim, UInt WRONG>
+  auto operator() (const FiniteElement<ORDER,mydim,WRONG>& fe_, UInt iq) const -> decltype(fe_.stiff_impl(iq, diffusion_matr())) {
+    static_assert(ndim==WRONG, "ERROR! INCOMPATIBLE DIMENSIONS OF DIFFUSION PARAMETER AND FINITE ELEMENT! See param_functors.h");
+    UInt globalIndex=fe_.getGlobalIndex(iq);
+    return fe_.stiff_impl(iq, K_[globalIndex]);
+  }
 
 private:
   diff_matr_container K_;
-
 };
 
-template <UInt ndim, bool is_space_varying = false>
+
+template <UInt ndim, bool is_SV = false>
 struct Advection{
 	using advection_vec = Eigen::Matrix<Real,ndim,1>;
 
@@ -64,11 +83,19 @@ struct Advection{
   }
   #endif
 
-	const advection_vec& operator()() const {return beta_;}
+  template<UInt ORDER, UInt mydim, UInt WRONG>
+  auto operator() (const FiniteElement<ORDER,mydim,WRONG>& fe_, UInt iq) const -> decltype(fe_.grad_impl(iq, advection_vec())) {
+    static_assert(ndim==WRONG, "ERROR! INCOMPATIBLE DIMENSIONS OF ADVECTION PARAMETER AND FINITE ELEMENT! See param_functors.h");
+    return fe_.grad_impl(iq, beta_);
+  }
+
+  EOExpr<const Advection&> dot(const EOExpr<Grad>& grad) const {
+    typedef EOExpr<const Advection&> ExprT;
+    return ExprT(*this);
+  }
 
 private:
   advection_vec beta_;
-
 };
 
 template<UInt ndim>
@@ -88,16 +115,23 @@ struct Advection<ndim, true>{
 	}
 	#endif
 
-	const advection_vec& operator()(UInt globalNodeIndex) const {return beta_[globalNodeIndex];}
+  template<UInt ORDER, UInt mydim, UInt WRONG>
+  auto operator() (const FiniteElement<ORDER,mydim,WRONG>& fe_, UInt iq) const -> decltype(fe_.grad_impl(iq, advection_vec())) {
+    static_assert(ndim==WRONG, "ERROR! INCOMPATIBLE DIMENSIONS OF ADVECTION PARAMETER AND FINITE ELEMENT! See param_functors.h");
+    UInt globalIndex=fe_.getGlobalIndex(iq);
+    return fe_.grad_impl(iq, beta_[globalIndex]);
+  }
+
+  EOExpr<const Advection&> dot(const EOExpr<Grad>& grad) const {
+    typedef EOExpr<const Advection&> ExprT;
+    return ExprT(*this);
+  }
 
 private:
   adv_vec_container beta_;
-
 };
 
-class Reaction{
-	std::vector<Real> c_;
-public:
+struct Reaction{
 	Reaction(const std::vector<Real>& c):
 		c_(c) {}
 
@@ -110,14 +144,20 @@ public:
 	}
 	#endif
 
-	const Real& operator()(UInt globalNodeIndex) const {return c_[globalNodeIndex];}
+  template<UInt ORDER, UInt mydim, UInt ndim>
+  auto operator() (const FiniteElement<ORDER, mydim, ndim>& fe_, UInt iq) const -> decltype(0.*fe_.mass_impl(iq)){
+    UInt globalIndex=fe_.getGlobalIndex(iq);
+    return c_[globalIndex]*fe_.mass_impl(iq);
+  }
 
+private:
+  std::vector<Real> c_;
 };
 
-class ForcingTerm{
-	std::vector<Real> u_;
-public:
-	ForcingTerm(const std::vector<Real>& u):
+struct ForcingTerm{
+
+  ForcingTerm() = default;
+	ForcingTerm(const std::vector<Real>& u) :
 		u_(u) {}
 
 	#ifdef R_VERSION_
@@ -129,7 +169,9 @@ public:
 	}
 	#endif
 
-	Real operator()(UInt globalNodeIndex) const {return u_[globalNodeIndex];}
+	Real operator[](UInt globalNodeIndex) const {return u_[globalNodeIndex];}
+private:
+  std::vector<Real> u_;
 };
 
 

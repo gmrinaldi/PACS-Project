@@ -22,7 +22,7 @@
 #' via spatial regression with PDE penalization. Journal of the American Statistical Association, 110(511), 1057-1071.}
 #' }
 #' @examples 
-#' library(fdaPDE)
+#' library(PACSProject)
 #' ## Upload the horseshoe2D data
 #' data(horseshoe2D)
 #' 

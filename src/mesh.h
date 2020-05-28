@@ -1,17 +1,24 @@
 #ifndef MESH_H_
 #define MESH_H_
 
-#include "fdaPDE.h"
+
 #include "mesh_objects.h"
+
+
+// To do: add get element measure and get edge/face
 
 
 template <UInt ORDER, UInt mydim, UInt ndim>
 class MeshHandler{
-static_assert(ORDER==1 || ORDER==2,
-  "ERROR: Only first and second order case implemented for now; see mesh.h");
+  static_assert((ORDER==1 || ORDER==2) &&
+								(mydim==2 || mydim==3) &&
+								 mydim <= ndim,
+								 "ERROR! TRYING TO INSTANTIATE MESH_HANDLER WITH WRONG NUMBER OF NODES AND/OR DIMENSIONS! See mesh.h");
 public:
   // Note: how_many_nodes constexpr function is defined in mesh_objects.h
-	using meshElement=Element<how_many_nodes(ORDER,mydim),mydim,ndim>;
+	using meshElement = Element<how_many_nodes(ORDER,mydim),mydim,ndim>;
+  using meshSide = std::array<UInt, mydim>;
+
 	//! A constructor.
 		/*!
 			* The constructor permits the initialization of the mesh from an R object
@@ -53,14 +60,20 @@ public:
 		 * \param id an Id argument
 			\return The point with the specified id
 		*/
-	Point<ndim> getPoint(Id id) const;
+	Point<ndim> getPoint(UInt id) const;
 
 	//! A normal member returning an Element
 		/*!
 		 * \param id an Id argument
 			\return The element with order coerent to that of the mesh with the specified id
 		*/
-	meshElement getElement(Id id) const;
+	meshElement getElement(UInt id) const;
+
+  meshSide getSide(UInt id) const;
+  meshSide getEdge(UInt id) const {return getSide(id);}
+  meshSide getFace(UInt id) const {return getSide(id);}
+
+  Real getElementMeasure(UInt id) const {return getElement(id).getMeasure();}
 
 	//The "number" neighbor of element i is opposite the "number" vertex of element i
 		//! A normal member returning the Neighbors of a element
@@ -70,7 +83,7 @@ public:
 			\return The element that has as a side the one opposite to the specified
 			vertex
 		*/
-	meshElement getNeighbors(Id id_element, UInt number) const;
+	meshElement getNeighbors(UInt id_element, UInt number) const;
 
 	void printPoints(std::ostream &);
 	void printElements(std::ostream &);

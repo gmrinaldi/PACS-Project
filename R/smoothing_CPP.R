@@ -64,7 +64,7 @@ CPP_smooth.FEM.basis<-function(locations, observations, FEMbasis, lambda, covari
   ## Call C++ function
   bigsol <- .Call("regression_Laplace", locations, observations, FEMbasis$mesh, FEMbasis$order,
                   mydim, ndim, lambda, covariates, incidence_matrix, BC$BC_indices, BC$BC_values,
-                  GCV, GCVMETHOD, nrealizations, PACKAGE = "fdaPDE")
+                  GCV, GCVMETHOD, nrealizations, PACKAGE = "PACSProject")
   return(bigsol)
 }
 
@@ -138,7 +138,7 @@ CPP_smooth.FEM.PDE.basis<-function(locations, observations, FEMbasis, lambda, PD
   ## Call C++ function
   bigsol <- .Call("regression_PDE", locations, observations, FEMbasis$mesh, FEMbasis$order, mydim, ndim,
                   lambda, PDE_parameters$K, PDE_parameters$b, PDE_parameters$c, covariates, incidence_matrix,
-                  BC$BC_indices, BC$BC_values, GCV,GCVMETHOD, nrealizations, PACKAGE = "fdaPDE")
+                  BC$BC_indices, BC$BC_values, GCV,GCVMETHOD, nrealizations, PACKAGE = "PACSProject")
   return(bigsol)
 }
 
@@ -221,7 +221,7 @@ CPP_smooth.FEM.PDE.sv.basis<-function(locations, observations, FEMbasis, lambda,
   bigsol <- .Call("regression_PDE_space_varying", locations, observations, FEMbasis$mesh, FEMbasis$order,
                   mydim, ndim, lambda, PDE_param_eval$K, PDE_param_eval$b, PDE_param_eval$c, PDE_param_eval$u,
                   covariates, incidence_matrix, BC$BC_indices, BC$BC_values, GCV,GCVMETHOD, nrealizations,
-                  PACKAGE = "fdaPDE")
+                  PACKAGE = "PACSProject")
   return(bigsol)
 }
 
@@ -268,7 +268,7 @@ CPP_eval.FEM = function(FEM, locations, incidence_matrix, redundancy, ndim, mydi
   evalmat = matrix(0,max(nrow(locations),nrow(incidence_matrix)),ncol(coeff))
   for (i in 1:ncol(coeff)){
     evalmat[,i] <- .Call("eval_FEM_fd", FEMbasis$mesh, locations, incidence_matrix, coeff[,i],
-                         FEMbasis$order, redundancy, mydim, ndim, PACKAGE = "fdaPDE")
+                         FEMbasis$order, redundancy, mydim, ndim, PACKAGE = "PACSProject")
   }
   
   #Returning the evaluation matrix
@@ -300,7 +300,7 @@ CPP_get_evaluations_points = function(mesh, order)
   
  
   points <- .Call("get_integration_points",mesh, order,mydim, ndim,
-                  PACKAGE = "fdaPDE")
+                  PACKAGE = "PACSProject")
   
   #Returning the evaluation matrix
   points
@@ -337,7 +337,7 @@ CPP_get.FEM.Mass.Matrix<-function(FEMbasis)
   ## Call C++ function
   triplets <- .Call("get_FEM_mass_matrix", FEMbasis$mesh, 
                     FEMbasis$order,mydim, ndim,
-                    PACKAGE = "fdaPDE")
+                    PACKAGE = "PACSProject")
   
   A = sparseMatrix(i = triplets[[1]][,1], j=triplets[[1]][,2], x = triplets[[2]], dims = c(nrow(FEMbasis$mesh$nodes),nrow(FEMbasis$mesh$nodes)))
   return(A)
@@ -373,7 +373,7 @@ CPP_get.FEM.Stiff.Matrix<-function(FEMbasis)
   ## Call C++ function
   triplets <- .Call("get_FEM_stiff_matrix", FEMbasis$mesh, 
                     FEMbasis$order, mydim, ndim,
-                    PACKAGE = "fdaPDE")
+                    PACKAGE = "PACSProject")
   
   A = sparseMatrix(i = triplets[[1]][,1], j=triplets[[1]][,2], x = triplets[[2]], dims = c(nrow(FEMbasis$mesh$nodes),nrow(FEMbasis$mesh$nodes)))
   return(A)
@@ -436,7 +436,7 @@ CPP_get.FEM.PDE.Matrix<-function(observations, FEMbasis, PDE_parameters)
   triplets <- .Call("get_FEM_PDE_matrix", locations, observations, FEMbasis$mesh, 
                     FEMbasis$order,mydim, ndim, lambda, PDE_parameters$K, PDE_parameters$b, PDE_parameters$c, covariates,
                     incidence_matrix, BC$BC_indices, BC$BC_values, GCV,GCVmethod, nrealizations,
-                    PACKAGE = "fdaPDE")
+                    PACKAGE = "PACSProject")
   
   A = sparseMatrix(i = triplets[[1]][,1], j=triplets[[1]][,2], x = triplets[[2]], dims = c(nrow(FEMbasis$mesh$nodes),nrow(FEMbasis$mesh$nodes)))
   return(A)
@@ -509,7 +509,7 @@ CPP_get.FEM.PDE.sv.Matrix<-function(observations, FEMbasis, PDE_parameters)
   triplets <- .Call("get_FEM_PDE_space_varying_matrix", locations, observations, FEMbasis$mesh, 
                     FEMbasis$order,mydim, ndim, lambda, PDE_param_eval$K, PDE_param_eval$b, PDE_param_eval$c, PDE_param_eval$u, covariates,
                     incidence_matrix, BC$BC_indices, BC$BC_values, GCV,GCVmethod, nrealizations,
-                    PACKAGE = "fdaPDE")
+                    PACKAGE = "PACSProject")
   
   A = sparseMatrix(i = triplets[[1]][,1], j=triplets[[1]][,2], x = triplets[[2]], dims = c(nrow(FEMbasis$mesh$nodes),nrow(FEMbasis$mesh$nodes)))
   return(A)

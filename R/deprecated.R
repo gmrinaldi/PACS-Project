@@ -1,8 +1,8 @@
 #' Deprecated Functions 
 #' 
-#' These functions are Deprecated in this release of fdaPDE, they will be 
+#' These functions are Deprecated in this release of PACSProject, they will be 
 #' marked as Defunct and removed in a future version. 
-#' @name fdaPDE-deprecated
+#' @name PACSProject-deprecated
 
 
 #' @param FEMbasis A \code{FEM} object representing the Finite Element basis. See \code{\link{create.FEM.basis}}.
@@ -10,7 +10,7 @@
 #' The dimension of the matrix is equal to the number of the nodes of the mesh.
 #' @description Only executed when \code{smooth.FEM.basis} is run with the option  \code{CPP_CODE} = \code{FALSE}. It computes the mass matrix. The element (i,j) of this matrix contains the integral over the domain of the product between the ith and kth element 
 #' of the Finite Element basis. As common practise in Finite Element Analysis, this quantities are computed iterating over all the mesh triangles. 
-#' @rdname fdaPDE-deprecated
+#' @rdname PACSProject-deprecated
 #' @export
 
 R_mass=function(FEMbasis)
@@ -67,7 +67,7 @@ R_mass=function(FEMbasis)
 #' The dimension of the matrix is equal to the number of the nodes of the mesh.
 #' @description Only executed when \code{smooth.FEM.basis} is run with the option  \code{CPP_CODE} = \code{FALSE}. It computes the stifness matrix. The element (i,j) of this matrix contains the integral over the domain of the scalar product between the gradient of the ith and kth element 
 #' of the Finite Element basis. As common practise in Finite Element Analysis, this quantities are computed iterating over all the mesh triangles. 
-#' @rdname fdaPDE-deprecated
+#' @rdname PACSProject-deprecated
 #' @export
 
 R_stiff= function(FEMbasis)
@@ -161,7 +161,7 @@ R_stiff= function(FEMbasis)
 #'    \item{\code{edf}}{If GCV is \code{TRUE}, a scalar or vector with the trace of the smoothing matrix for each value of the smoothing parameter specified in \code{lambda}.}
 #'    \item{\code{stderr}}{If GCV is \code{TRUE}, a scalar or vector with the estimate of the standard deviation of the error for each value of the smoothing parameter specified in \code{lambda}.}
 #'    \item{\code{GCV}}{If GCV is \code{TRUE}, a  scalar or vector with the value of the GCV criterion for each value of the smoothing parameter specified in \code{lambda}.}
-#' @rdname fdaPDE-deprecated
+#' @rdname PACSProject-deprecated
 #' @export
 
 
@@ -317,7 +317,7 @@ R_smooth.FEM.basis = function(locations, observations, FEMbasis, lambda, covaria
 #' basis function evaluated 
 #' @description Only executed when the function \code{smooth.FEM.basis} is run with the option \code{CPP_CODE} = \code{FALSE}. It evaluates the Finite Element basis functions and their derivatives up to order 2 at the specified set of locations. 
 #' This version of the function is implemented using only R code. It is called by \link{R_smooth.FEM.basis}.
-#' @rdname fdaPDE-deprecated
+#' @rdname PACSProject-deprecated
 #' @export
 
 R_eval.FEM.basis <- function(FEMbasis, locations, nderivs = matrix(0,1,2))
@@ -488,7 +488,7 @@ R_eval.FEM.basis <- function(FEMbasis, locations, nderivs = matrix(0,1,2))
 #' A matrix of numeric evaluations of the \code{FEM} object. Each row indicates the location where the evaluation has been taken, the column indicates the 
 #' function evaluated.
 #' @description Only executed when the function \code{smooth.FEM.basis} is run with the option \code{CPP_CODE} = \code{FALSE}. It evaluates a FEM object at the specified set of locations. 
-#' @rdname fdaPDE-deprecated
+#' @rdname PACSProject-deprecated
 #' @export
 
 R_eval.FEM <- function(FEM, locations)
@@ -642,13 +642,13 @@ R_tricoefCal = function(mesh)
 #' \item{\code{stderr}}{If GCV is \code{TRUE}, a scalar or vector with the estimate of the standard deviation of the error for each value of the smoothing parameter specified in \code{lambda}.}
 #' \item{\code{GCV}}{If GCV is \code{TRUE}, a  scalar or vector with the value of the GCV criterion for each value of the smoothing parameter specified in \code{lambda}.}
 #' @description This function implements a spatial regression model with differential regularization; isotropic and stationary case. In particular, the regularizing term involves the Laplacian of the spatial field. Space-varying covariates can be included in the model. The technique accurately handle data distributed over irregularly shaped domains. Moreover, various conditions can be imposed at the domain boundaries.
-#' @rdname fdaPDE-deprecated
+#' @rdname PACSProject-deprecated
 #' @export
 
 
 smooth.FEM.basis<-function(locations = NULL, observations, FEMbasis, lambda, covariates = NULL, BC = NULL, GCV = FALSE, CPP_CODE = TRUE)
 {
-  .Deprecated("smooth.FEM", package = "fdaPDE")
+  .Deprecated("smooth.FEM", package = "PACSProject")
   ans=smooth.FEM(locations=locations,observations=observations,FEMbasis=FEMbasis,lambda=lambda, covariates=covariates,BC=BC,GCV=GCV,GCVmethod = 'Exact')
   ans
 }
@@ -683,11 +683,11 @@ smooth.FEM.basis<-function(locations = NULL, observations, FEMbasis, lambda, cov
 #'          \item{\code{stderr}}{If GCV is \code{TRUE}, a scalar or vector with the estimate of the standard deviation of the error for each value of the smoothing parameter specified in \code{lambda}.}
 #'          \item{\code{GCV}}{If GCV is \code{TRUE}, a  scalar or vector with the value of the GCV criterion for each value of the smoothing parameter specified in \code{lambda}.}
 #' @description This function implements a spatial regression model with differential regularization; anysotropic case. In particular, the regularizing term involves a second order elliptic PDE, that models the space-variation of the phenomenon. Space-varying covariates can be included in the model. The technique accurately handle data distributed over irregularly shaped domains. Moreover, various conditions can be imposed at the domain boundaries.
-#' @rdname fdaPDE-deprecated
+#' @rdname PACSProject-deprecated
 #' @export
 smooth.FEM.PDE.basis<-function(locations = NULL, observations, FEMbasis, lambda, PDE_parameters, covariates = NULL, BC = NULL, GCV = FALSE, CPP_CODE = TRUE)
 {
-  .Deprecated("smooth.FEM", package = "fdaPDE")
+  .Deprecated("smooth.FEM", package = "PACSProject")
   ans=smooth.FEM(locations=locations,observations=observations,FEMbasis=FEMbasis,lambda=lambda,PDE_parameters=PDE_parameters,covariates=covariates,BC=BC,GCV=GCV,GCVmethod = 'Exact')
   ans
 }
@@ -729,12 +729,12 @@ smooth.FEM.PDE.basis<-function(locations = NULL, observations, FEMbasis, lambda,
 #'          \item{\code{stderr}}{If GCV is \code{TRUE}, a scalar or vector with the estimate of the standard deviation of the error for each value of the smoothing parameter specified in \code{lambda}.}
 #'          \item{\code{GCV}}{If GCV is \code{TRUE}, a  scalar or vector with the value of the GCV criterion for each value of the smoothing parameter specified in \code{lambda}.}
 #' @description This function implements a spatial regression model with differential regularization; anysotropic and non-stationary case. In particular, the regularizing term involves a second order elliptic PDE with space-varying coefficients, that models the space-variation of the phenomenon. Space-varying covariates can be included in the model. The technique accurately handle data distributed over irregularly shaped domains. Moreover, various conditions can be imposed at the domain boundaries.
-#' @rdname fdaPDE-deprecated
+#' @rdname PACSProject-deprecated
 #' @export
 
 smooth.FEM.PDE.sv.basis<-function(locations = NULL, observations, FEMbasis, lambda, PDE_parameters, covariates = NULL, BC = NULL, GCV = FALSE, CPP_CODE = TRUE)
 {
-  .Deprecated("smooth.FEM", package = "fdaPDE")
+  .Deprecated("smooth.FEM", package = "PACSProject")
   ans=smooth.FEM(locations=locations,observations=observations,FEMbasis=FEMbasis,lambda=lambda,PDE_parameters=PDE_parameters,covariates=covariates,BC=BC,GCV=GCV,GCVmethod = 'Exact')
   ans
 }
@@ -790,7 +790,7 @@ smooth.FEM.PDE.sv.basis<-function(locations = NULL, observations, FEMbasis, lamb
 #' in the triangulation, when the domain has holes.}
 #' \item{\code{order}}{Either '1' or '2'. It specifies wether each mesh triangle should be represented by 3 nodes (the triangle' vertices) or by 6 nodes (the triangle's vertices and midpoints). 
 #' These are respectively used for linear (order = 1) and quadratic (order = 2) Finite Elements. Default is \code{order} = 1.}
-#' @rdname fdaPDE-deprecated
+#' @rdname PACSProject-deprecated
 #' @export
 
 create.MESH.2D <- function(nodes, nodesattributes = NA, segments = NA, holes = NA, triangles = NA, order = 1, verbosity = 0)
@@ -831,7 +831,7 @@ create.MESH.2D <- function(nodes, nodesattributes = NA, segments = NA, holes = N
 #' \item{\code{order}}{Either '1' or '2'. It specifies wether each mesh triangle should be represented by 3 nodes (the triangle' vertices) or by 6 nodes (the triangle's vertices and midpoints). 
 #' These are respectively used for linear (order = 1) and quadratic (order = 2) Finite Elements. Default is \code{order} = 1.}
 #' @export
-#' @rdname fdaPDE-deprecated
+#' @rdname PACSProject-deprecated
 
 refine.MESH.2D<-function(mesh, minimum_angle = NA, maximum_area = NA, delaunay = FALSE, verbosity = 0)
 { 
@@ -846,7 +846,7 @@ refine.MESH.2D<-function(mesh, minimum_angle = NA, maximum_area = NA, delaunay =
 #' @description Plot a mesh MESH2D object, generated by \code{create.MESH.2D} or \code{refine.MESH.2D}. Circles indicate the mesh nodes.
 #' @usage \method{plot}{MESH2D}(x, ...)
 #' @export
-#' @rdname fdaPDE-deprecated
+#' @rdname PACSProject-deprecated
 
 plot.MESH2D<-function(x, ...)
 {

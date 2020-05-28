@@ -2,14 +2,14 @@
 #define MATRIX_ASSEMBLER_IMP_H_
 
 
-template<UInt ORDER, typename Integrator, UInt mydim, UInt ndim, typename A>
+template<UInt ORDER, UInt mydim, UInt ndim, typename A>
 void Assembler::operKernel(EOExpr<A> oper, const MeshHandler<ORDER,mydim,ndim>& mesh,
-	                     FiniteElement<Integrator,ORDER,mydim,ndim>& fe, SpMat& OpMat)
+	                     FiniteElement<ORDER,mydim,ndim>& fe, SpMat& OpMat)
 {
 	static constexpr Real eps = std::numeric_limits<Real>::epsilon(),
 		 tolerance = 10 * eps;
-	static constexpr UInt NBASES = FiniteElement<Integrator,ORDER,mydim,ndim>::NBASES;
-	using local_matr_t = typename FiniteElement<Integrator, ORDER, mydim, ndim>::return_t;
+	static constexpr UInt NBASES = FiniteElement<ORDER,mydim,ndim>::NBASES;
+	using Integrator = typename FiniteElement<ORDER, mydim, ndim>::Integrator;
 
 	std::vector<coeff> triplets;
 	triplets.reserve(NBASES*NBASES*mesh.num_elements());
@@ -17,7 +17,7 @@ void Assembler::operKernel(EOExpr<A> oper, const MeshHandler<ORDER,mydim,ndim>& 
 	std::vector<UInt> identifiers;
 	identifiers.reserve(NBASES);
 
-	local_matr_t loc_matr = local_matr_t::Zero();
+	Eigen::Matrix<Real,NBASES,NBASES> loc_matr = Eigen::Matrix<Real,NBASES,NBASES>::Zero();
 
   for(int t=0; t<mesh.num_elements(); ++t){
 
@@ -28,7 +28,7 @@ void Assembler::operKernel(EOExpr<A> oper, const MeshHandler<ORDER,mydim,ndim>& 
 			identifiers.push_back(fe[i].id());
 
 		for(int iq = 0; iq < Integrator::NNODES; ++iq)
-				loc_matr += oper(fe, iq) * Integrator::WEIGHTS[iq];
+				loc_matr.noalias() += oper(fe, iq) * Integrator::WEIGHTS[iq];
 
 		loc_matr *= fe.getMeasure();
 
@@ -46,11 +46,12 @@ void Assembler::operKernel(EOExpr<A> oper, const MeshHandler<ORDER,mydim,ndim>& 
 	OpMat.prune(tolerance);
 }
 
-template<UInt ORDER, typename Integrator, UInt mydim, UInt ndim>
+template<UInt ORDER, UInt mydim, UInt ndim>
 void Assembler::forcingTerm(const MeshHandler<ORDER,mydim,ndim>& mesh,
-	                     FiniteElement<Integrator, ORDER,mydim,ndim>& fe, const ForcingTerm& u, VectorXr& forcingTerm)
+	                     FiniteElement<ORDER,mydim,ndim>& fe, const ForcingTerm& u, VectorXr& forcingTerm)
 {
-	static constexpr UInt NBASES = FiniteElement<Integrator,ORDER,mydim,ndim>::NBASES;
+	static constexpr UInt NBASES = FiniteElement<ORDER,mydim,ndim>::NBASES;
+	using Integrator = typename FiniteElement<ORDER, mydim, ndim>::Integrator;
 
 	forcingTerm = VectorXr::Zero(mesh.num_nodes());
 
@@ -62,7 +63,7 @@ void Assembler::forcingTerm(const MeshHandler<ORDER,mydim,ndim>& mesh,
 			Real s=0;
 			for(int iq = 0; iq < Integrator::NNODES; ++iq){
 				UInt globalIndex = fe.getGlobalIndex(iq);
-				s +=  fe.phiMaster(i,iq)* u(globalIndex) * Integrator::WEIGHTS[iq];//(*)
+				s +=  fe.phiMaster(i,iq)* u[globalIndex] * Integrator::WEIGHTS[iq];
 			}
 			forcingTerm[fe[i].id()] += s * fe.getMeasure();
 		}

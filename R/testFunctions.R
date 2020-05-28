@@ -19,7 +19,7 @@
 #' Statistical Society: Series B (Statistical Methodology), 70(5), 931-955.}
 #' }
 #' @examples 
-#' library(fdaPDE)
+#' library(PACSProject)
 #' 
 #' ## Upload the horseshoe2D data
 #' data(horseshoe2D)
