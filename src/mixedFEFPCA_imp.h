@@ -31,7 +31,7 @@ void MixedFEFPCABase<ORDER, mydim, ndim>::computeDelta()
 		{
 			if (fpcaData_.getIncidenceMatrix()(i,j) == 1)
 			{
-				Delta_(i)+=mesh_.getElement(j).getMeasure();
+				Delta_(i)+=mesh_.elementMeasure(j);
 			}
 		}
 	}

@@ -325,7 +325,7 @@ CPP_get.FEM.Mass.Matrix<-function(FEMbasis)
   FEMbasis$mesh$neighbors[FEMbasis$mesh$neighbors != -1] = FEMbasis$mesh$neighbors[FEMbasis$mesh$neighbors != -1] - 1
   
   ## Set propr type for correct C++ reading
-  storage.mode(locations) <- "double"
+  # storage.mode(locations) <- "double"
   storage.mode(FEMbasis$mesh$nodes) <- "double"
   storage.mode(FEMbasis$mesh$triangles) <- "integer"
   storage.mode(FEMbasis$mesh$edges) <- "integer"
@@ -361,7 +361,6 @@ CPP_get.FEM.Stiff.Matrix<-function(FEMbasis)
   FEMbasis$mesh$neighbors[FEMbasis$mesh$neighbors != -1] = FEMbasis$mesh$neighbors[FEMbasis$mesh$neighbors != -1] - 1
   
   ## Set propr type for correct C++ reading
-  storage.mode(locations) <- "double"
   storage.mode(FEMbasis$mesh$nodes) <- "double"
   storage.mode(FEMbasis$mesh$triangles) <- "integer"
   storage.mode(FEMbasis$mesh$edges) <- "integer"

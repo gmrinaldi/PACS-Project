@@ -318,7 +318,7 @@ void MixedFERegressionBase<InputHandler,ORDER,mydim, ndim>::setA()
 		{
 			if (regressionData_.getIncidenceMatrix()(i,j) == 1)
 			{
-				A_(i)+=mesh_.getElement(j).getMeasure();
+				A_(i)+=mesh_.elementMeasure(j);
 			}
 		}
 	}
@@ -611,7 +611,7 @@ template<typename InputHandler, UInt ORDER, UInt mydim, UInt ndim>
 template<typename A>
 void MixedFERegressionBase<InputHandler,ORDER, mydim, ndim>::apply(EOExpr<A> oper, const ForcingTerm & u)
 {
-	UInt nnodes=mesh_.num_nodes();
+	const UInt nnodes=mesh_.num_nodes();
 	FiniteElement<ORDER, mydim, ndim> fe;
 
 	setA();

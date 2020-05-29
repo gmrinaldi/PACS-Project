@@ -73,7 +73,7 @@ public:
   meshSide getEdge(UInt id) const {return getSide(id);}
   meshSide getFace(UInt id) const {return getSide(id);}
 
-  Real getElementMeasure(UInt id) const {return getElement(id).getMeasure();}
+  Real elementMeasure(UInt id) const {return getElement(id).getMeasure();}
 
 	//The "number" neighbor of element i is opposite the "number" vertex of element i
 		//! A normal member returning the Neighbors of a element

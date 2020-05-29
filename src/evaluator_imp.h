@@ -108,6 +108,7 @@ void Evaluator<ORDER, 2, 2>::integrate(UInt** incidenceMatrix, UInt nRegions, UI
 	std::vector<Real> integral(nRegions, 0);
 	static constexpr UInt NNodes = 3*ORDER;
 	Element<NNodes, 2, 2> current_element;
+	Eigen::Matrix<Real,NNodes,1> coefficients;
 
 	for (int region=0; region<nRegions; ++region)
 	{
@@ -115,7 +116,7 @@ void Evaluator<ORDER, 2, 2>::integrate(UInt** incidenceMatrix, UInt nRegions, UI
 		{
 			if (incidenceMatrix[region][elem]==1) //elem is in region
 			{
-				Eigen::Matrix<Real,NNodes,1> coefficients;
+				current_element = mesh_.getElement(elem);
 				for (int i=0; i<NNodes; ++i)
 					coefficients[i]=coef[current_element[i].getId()];
 				Delta[region] += current_element.getMeasure();
@@ -134,6 +135,8 @@ void Evaluator<ORDER, 2, 3>::integrate(UInt** incidenceMatrix, UInt nRegions, UI
 	std::vector<Real> integral(nRegions, 0);
 	static constexpr UInt NNodes = 3*ORDER;
 	Element<NNodes, 2, 3> current_element;
+	Eigen::Matrix<Real,NNodes,1> coefficients;
+
 
 	for (int region=0; region<nRegions; ++region)
 	{
@@ -141,7 +144,7 @@ void Evaluator<ORDER, 2, 3>::integrate(UInt** incidenceMatrix, UInt nRegions, UI
 		{
 			if (incidenceMatrix[region][elem]==1) //elem is in region
 			{
-				Eigen::Matrix<Real,NNodes,1> coefficients;
+				current_element = mesh_.getElement(elem);
 				for (int i=0; i<NNodes; ++i)
 					coefficients[i]=coef[current_element[i].getId()];
 				Delta[region] += current_element.getMeasure();
@@ -160,6 +163,7 @@ void Evaluator<ORDER, 3, 3>::integrate(UInt** incidenceMatrix, UInt nRegions, UI
 	std::vector<Real> integral(nRegions, 0);
 	static constexpr UInt NNodes = 6*ORDER-2;
 	Element<NNodes, 3, 3> current_element;
+	Eigen::Matrix<Real,NNodes,1> coefficients;
 
 	for (int region=0; region<nRegions; ++region)
 	{
@@ -167,7 +171,7 @@ void Evaluator<ORDER, 3, 3>::integrate(UInt** incidenceMatrix, UInt nRegions, UI
 		{
 			if (incidenceMatrix[region][elem]==1) //elem is in region
 			{
-				Eigen::Matrix<Real,NNodes,1> coefficients;
+				current_element = mesh_.getElement(elem);
 				for (int i=0; i<NNodes; ++i)
 					coefficients[i]=coef[current_element[i].getId()];
 				Delta[region] += current_element.getMeasure();

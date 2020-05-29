@@ -40,7 +40,7 @@ void Assembler::operKernel(EOExpr<A> oper, const MeshHandler<ORDER,mydim,ndim>& 
 		loc_matr.setZero();
 	}
 
-  UInt nnodes = mesh.num_nodes();
+  const UInt nnodes = mesh.num_nodes();
   OpMat.resize(nnodes, nnodes);
 	OpMat.setFromTriplets(triplets.begin(),triplets.end());
 	OpMat.prune(tolerance);
