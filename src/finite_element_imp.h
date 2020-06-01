@@ -2,9 +2,11 @@
 #define __FINITE_ELEMENT_IMP_HPP__
 
 // Template auxiliary function forward declaration
+// This function evaluate ^phi_i's at quadrature nodes
 template<UInt NBASES, UInt mydim>
 Eigen::Matrix<Real, NBASES, 1> reference_eval_point(const Point<mydim> &node);
 
+// This function evaluate nabla ^phi_i's at quadrature nodes
 template<UInt NBASES, UInt mydim>
 Eigen::Matrix<Real, NBASES,mydim> reference_eval_der_point(const Point<mydim> &node);
 

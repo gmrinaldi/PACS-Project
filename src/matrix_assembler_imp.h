@@ -63,7 +63,7 @@ void Assembler::forcingTerm(const MeshHandler<ORDER,mydim,ndim>& mesh,
 			Real s=0;
 			for(int iq = 0; iq < Integrator::NNODES; ++iq){
 				UInt globalIndex = fe.getGlobalIndex(iq);
-				s +=  fe.phiMaster(i,iq)* u[globalIndex] * Integrator::WEIGHTS[iq];
+				s +=  fe.getPhi(i,iq)* u[globalIndex] * Integrator::WEIGHTS[iq];
 			}
 			forcingTerm[fe[i].id()] += s * fe.getMeasure();
 		}

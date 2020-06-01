@@ -1,11 +1,12 @@
 #ifndef MESH_H_
 #define MESH_H_
 
+// Needed for std::enable_if
+#include <type_traits>
 
+// Note: how_many_nodes constexpr function is defined in mesh_objects.h
+// Also Point and Element
 #include "mesh_objects.h"
-
-
-// To do: add get element measure and get edge/face
 
 
 template <UInt ORDER, UInt mydim, UInt ndim>
@@ -15,74 +16,50 @@ class MeshHandler{
 								 mydim <= ndim,
 								 "ERROR! TRYING TO INSTANTIATE MESH_HANDLER WITH WRONG NUMBER OF NODES AND/OR DIMENSIONS! See mesh.h");
 public:
-  // Note: how_many_nodes constexpr function is defined in mesh_objects.h
 	using meshElement = Element<how_many_nodes(ORDER,mydim),mydim,ndim>;
-  using meshSide = std::array<UInt, mydim>;
 
-	//! A constructor.
-		/*!
-			* The constructor permits the initialization of the mesh from an R object
-			* constructed with the TriLibrary (our R wrapper for the Triangle library)
-			* in 2D (in 2.5D and 3D R functions can produce a compatible object if the
-			* triangulation is already available)
-		*/
-
+  // A constructor
+  // Note: this constructor is never actually used in practice outside of debug
 	MeshHandler(Real* points, UInt* sides, UInt* elements, UInt* neighbors, UInt num_nodes, UInt num_sides, UInt num_elements):
 			points_(points), sides_(sides), elements_(elements), neighbors_(neighbors), num_nodes_(num_nodes), num_sides_(num_sides), num_elements_(num_elements) {};
+
+  //! A constructor.
+    /*!
+      * This constructor permits the initialization of the mesh from an R object
+      * constructed with the TriLibrary (our R wrapper for the Triangle library)
+      * in 2D (in 2.5D and 3D R functions can produce a compatible object if the
+      * triangulation is already available)
+    */
 
 	#ifdef R_VERSION_
 	MeshHandler(SEXP Rmesh);
 	#endif
 
-	//! A normal member returning an unsigned integer value.
-		/*!
-			\return The number of nodes in the mesh
-		*/
+	//! A member returning the number of nodes in the mesh
 	UInt num_nodes() const {return num_nodes_;}
 
-	//! A normal member returning an unsigned integer value.
-		/*!
-			\return The number of elements in the mesh
-		*/
+	//! A member returning the number of elements in the mesh
 	UInt num_elements() const {return num_elements_;}
 
-	//! A normal member returning an unsigned integer value.
-		/*!
-			\return The number of distinct sides (edges for mydim=2,
-			faces for mydim=3) in the mesh
-		*/
+	//! A member returning the number of distinct sides
+  // (edges for mydim=2,faces for mydim=3) in the mesh
+  // All three implemented for convenience
 	UInt num_sides() const {return num_sides_;}
   UInt num_edges() const {return num_sides_;}
   UInt num_faces() const {return num_sides_;}
 
-	//! A normal member returning a n-dimensional Point
-		/*!
-		 * \param id an Id argument
-			\return The point with the specified id
-		*/
+	//! A member returning the ndim-dimensional Point with the specified ID
 	Point<ndim> getPoint(UInt id) const;
 
-	//! A normal member returning an Element
-		/*!
-		 * \param id an Id argument
-			\return The element with order coerent to that of the mesh with the specified id
-		*/
+	//! A member returning an Element with the specified ID
 	meshElement getElement(UInt id) const;
 
-  meshSide getSide(UInt id) const;
-  meshSide getEdge(UInt id) const {return getSide(id);}
-  meshSide getFace(UInt id) const {return getSide(id);}
-
+  //! A member returning the area/volume of a given element of the mesh
   Real elementMeasure(UInt id) const {return getElement(id).getMeasure();}
 
-	//The "number" neighbor of element i is opposite the "number" vertex of element i
-		//! A normal member returning the Neighbors of a element
-		/*!
-		 * \param id the id of the element
-		 * \param number the number of the vertex
-			\return The element that has as a side the one opposite to the specified
-			vertex
-		*/
+  //! A member returning the "number"-th neighbor of element id_element,
+  // i.e. the neighbor opposite the "number"-th vertex of the element id_element
+  // Note: this function returns an empty element if the neighbor lies outside the boundary
 	meshElement getNeighbors(UInt id_element, UInt number) const;
 
 	void printPoints(std::ostream &);
@@ -92,28 +69,26 @@ public:
 	//! A normal member returning the element on which a point is located
 		/*!
 		 * This method implements a simply research between all the elements of the mesh
-		 * \param point the point we want to locate
-			\return The element that contains the point
 		*/
 	meshElement findLocationNaive(const Point<ndim>&) const;
 
   //! A normal member returning the element on which a point is located
     /*!
     * This method implements a Visibility Walk Algorithm (further details in: Walking in a triangulation, Devillers et al)
-    * \param point the point we want to locate
-    * \param starting_elements a vector of points that specifies the poposed starting
-    * points for the walking algorithm
-    \return The element that contains the point
     */
-  // This method is not implemented for manifold data
-  // We make sure that it is not used for manifold data at compile time using enable_if
+  // Note: this method is guaranteed to work only on convex domains
+  // It does not work for manifold data!
+  // We make sure that it is not available for manifold data at compile time using enable_if
   template <UInt m=mydim, UInt n=ndim>
-  typename std::enable_if<n==m && n==ndim && m==mydim, meshElement>::type findLocationWalking(const Point<ndim>&, const meshElement&) const;
+  typename std::enable_if<n==m && n==ndim && m==mydim, meshElement>::type
+  findLocationWalking(const Point<ndim>&, const meshElement&) const;
 
-  // This method is implemented only for manifold data (same trick using enable_if)
+  // This method is needed only for manifold data
   // This function projects points onto the mesh
+  // Note: this is only a heuristic approach, it can fail to provide the closest projection!
   template <UInt m=mydim, UInt n=ndim>
-  typename std::enable_if<(m<n) && n==ndim && m==mydim, std::vector<Point<3> > >::type project(const std::vector<Point<3> >&) const;
+  typename std::enable_if<m!=n && n==ndim && m==mydim, std::vector<Point<3> > >::type
+  project(const std::vector<Point<3> >&) const;
 
 private:
 	#ifdef R_VERSION_

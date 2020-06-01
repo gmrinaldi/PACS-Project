@@ -55,7 +55,7 @@ typename MeshHandler<ORDER,mydim,ndim>::meshElement MeshHandler<ORDER,mydim,ndim
 // Visibility walk algorithm which uses barycentric coordinate [Sundareswara et al]
 //Starting triangles usually n^(1/3) points
 template <UInt ORDER, UInt mydim, UInt ndim>
-template <UInt m, UInt n>																													//vvvvvvvvv actual return type
+template <UInt m, UInt n>																																		//vvvvvvvvv actual return type if enabled
 typename std::enable_if<n==m && n==ndim && m==mydim, typename MeshHandler<ORDER,mydim,ndim>::meshElement>::type
 MeshHandler<ORDER,mydim,ndim>::findLocationWalking(const Point<ndim>& point, const Element<how_many_nodes(ORDER,mydim),mydim,ndim>& starting_element) const
 {
@@ -69,7 +69,7 @@ MeshHandler<ORDER,mydim,ndim>::findLocationWalking(const Point<ndim>& point, con
 
 // This function finds the closest mesh nodes to a given set of 3D points.
 template <UInt ORDER, UInt mydim, UInt ndim>
-template <UInt m, UInt n>										//vvvvvvvvv actual return type
+template <UInt m, UInt n>																//vvvvvvvvv actual return type
 typename std::enable_if<(m<n) && n==ndim && m==mydim, std::vector<UInt> >::type
 MeshHandler<ORDER,mydim,ndim>::find_closest(const std::vector<Point<3> > &points) const{
 
@@ -96,7 +96,7 @@ MeshHandler<ORDER,mydim,ndim>::find_closest(const std::vector<Point<3> > &points
 
 // Naive function for projection onto surface
 template <UInt ORDER, UInt mydim, UInt ndim>
-template <UInt m, UInt n>											//vvvvvvvvv actual return type
+template <UInt m, UInt n>																//vvvvvvvvv actual return type
 typename std::enable_if<(m<n) && n==ndim && m==mydim, std::vector<Point<3> > >::type
 MeshHandler<ORDER,mydim,ndim>::project(const std::vector<Point<3> > &points) const{
 
