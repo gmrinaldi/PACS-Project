@@ -16,25 +16,34 @@ constexpr UInt how_many_nodes(UInt ORDER, UInt mydim) {
     return factorial(ORDER+mydim)/(factorial(ORDER)*factorial(mydim));
 }
 
-//!  This class gives some common methods to all mesh objects.
+//! This class contains the ID of the objects and gives some common methods
+// to get the ID and check if it is valid
 struct Identifier{
 
-	//! An static const Unsigned Integer.
-    /*! Needed to identify the Not Valid Id. */
+  // The biggest UInt number represents a not valid ID (NVAL)
 	static constexpr UInt NVAL = std::numeric_limits<UInt>::max();
 
+  // Some methods to check if the object has a valid ID
 	bool unassignedId() const {return id_==NVAL;}
   bool hasValidId() const {return !unassignedId();}
 	bool unassignedBc() const {return bcId_==NVAL;}
 
+  // Some methods to get the object ID
 	UInt id() const {return id_;}
 	UInt bcId() const {return bcId_;}
 	UInt getId() const {return id_;}
 
 protected:
+  // Default object ID is NVAL if not explicitly set
   UInt id_=NVAL;
+  // Note: bcId was probably intended to mark boundary objects but is never actually
+  // used, so it could be removed
 	UInt bcId_=NVAL;
 
+  // Protected constructors make the class act as an abstract base class
+  // without any runtime cost due to virtual functions
+  // Note: these constructors are constexpr so that any derived class with a
+  // constexpr constructor can work as a literal type (this is particularly relevant for Point)
   constexpr Identifier()=default;
   constexpr Identifier(UInt id) : id_(id) {}
   constexpr Identifier(UInt id, UInt bcId) : id_(id), bcId_(bcId) {}
@@ -43,8 +52,8 @@ protected:
 };
 
 
-// This class implements a n-dimensional point
-// Doesn't allow creation of points in dimension other than 2 or 3
+
+//! This class implements a Point in dimension 2 or 3
 template<UInt ndim>
 class Point : public Identifier{
   static_assert(ndim==2 || ndim==3,
@@ -52,6 +61,9 @@ class Point : public Identifier{
   public:
     using pointCoords = std::array<Real,ndim>;
     using EigenCoords = Eigen::Matrix<Real,ndim,1>;
+
+    // Note: some of the constructors are declared constexpr so that Point can be
+    // used as a literal type (see integration.h)
     // Default constructor initializing the origin
     constexpr Point()=default;
     // Full constructor initializing every member explicitly
@@ -66,26 +78,31 @@ class Point : public Identifier{
     // bracketed initializer lists)
     constexpr Point(const Real(&coord)[ndim]);
 
-    // Additional constructor allowing conversion from eigen objects
+    // Additional constructor allowing construction from an eigen vector
     Point(const EigenCoords &coord);
 
-    // Additional constructor for convenience in dealing with meshes
+    // Additional constructor for convenience in dealing with R data (e.g. meshes)
     Point(UInt id, const Real* const points, const UInt num_points);
 
+    // Overloaded subscript operator
     Real& operator[](UInt i) {return coord_[i];}
     const Real& operator[](UInt i) const {return coord_[i];}
 
-    // Member/friend functions returning the distance/squared distance between two points
+    // Member functions returning the distance/squared distance between two points
+    // Note: both are defined because the squared distance function is more efficient
+    // and should be preferred if one is only interested in comparing distances
     Real dist(const Point&) const;
     Real dist2(const Point&) const;
-
+    // Friend functions returning the distance/squared distance between two points
     friend Real dist(const Point& lhs, const Point& rhs) {return lhs.dist(rhs);};
     friend Real dist2(const Point& lhs, const Point& rhs) {return lhs.dist2(rhs);};
 
+    // Overloaded "+="/"-=" operators
+    // These operators add/subtract the coordinates elementwise
     Point& operator+=(const Point&);
     Point& operator-=(const Point&);
-    // Overload the "+" ("-") operator to take 2 points of the same dimension and compute
-    // the coordinate sum (difference).
+    // Overloaded "+"/"-" operator
+    // These operators add/subtract the coordinates elementwise and return a new point
     friend Point operator+(Point lhs, const Point& rhs) {return lhs+=rhs;};
     friend Point operator-(Point lhs, const Point& rhs) {return lhs-=rhs;};
 
@@ -101,19 +118,13 @@ class Point : public Identifier{
     }
 
   private:
+
     pointCoords coord_;
+
   };
 
 
-//! This is an abstract template class called Element
-/*!
- * mydim is the dimension of the object: e.g. a triangle has mydim=2, a tethraedron
- *       has mydim = 3
- *
- * ndim is the dimension of the space in which the object is embedded
- *
-*/
-
+//! This class implements an Element (i.e. a triangle or tetrahedron)
 //!  This class implements a Triangle as an objects composed by three or six nodes.
 /*!
  *  The first three nodes represent the vertices, the others the internal nodes,
@@ -128,23 +139,12 @@ class Point : public Identifier{
  * 		1	   6	  2
 */
 
-//!  This class implements a Triangle as an objects composed by three or six nodes, embedded in a 3-dimensional space
-/*!
- *  The first three nodes represent the vertices, the others the internal nodes,
- *  following this enumeration: !IMPORTANT! different from Sangalli code!
- *
- * 			    3
- * 			    *
- * 		     /    \
- * 		  5 *	   * 4
- * 		  /	        \
- * 		 *_____*_____*
- * 		1	   6	  2
-*/
 
 //!  This class implements a Tetrahedron as an objects composed by four or ten nodes, embedded in a 3-dimensional space.
 // For NNODES=10 the edges are ordered like so: (1,2), (1,3), (1,4), (2,3), (3,4), (2,4)
 // The midpoints are also expected to follow this convention!
+
+// Note: only order 1 and 2 are implemented at the moment
 
 template <UInt NNODES, UInt mydim, UInt ndim>
 class Element : public Identifier {
@@ -155,6 +155,8 @@ class Element : public Identifier {
                  "ERROR! TRYING TO INSTANTIATE ELEMENT WITH WRONG NUMBER OF NODES AND/OR DIMENSIONS! See mesh_objects.h");
 
 public:
+  // Note: this macro is needed to avoid alignment issues!
+  // See Eigen documentation "Structures Having Eigen Members"
 	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
   using elementPoints = std::array<Point<ndim>,NNODES>;
@@ -164,41 +166,43 @@ public:
   //! This constructor creates an "empty" Element, with an Id Not Valid
   Element()=default;
 
-	//! This constructor creates an Element, given its Id and an std array with the Points
+	//! This constructor creates an Element, given its Id and an array containing the Points
 	Element(UInt id, const elementPoints& points) :
 					Identifier(id), points_(points) {computeProperties();}
 
-	//! Overloading of the operator [],  taking the Node number and returning a node as a reference to a Point object.
-  // Point<ndim>& operator[](UInt i) {return points_[i];}
+	//! Overloaded subscript operator
+  // Note: only the const version is available because any change in points_
+  // would require a call to computeProperties() to keep the element in a valid state
 	const Point<ndim>& operator[](UInt i) const {return points_[i];}
 
   //! Define begin and end iterators (this also gives "ranged for" for free)
-  // iterator begin() {return points_.begin();}
-  // iterator end() {return points_.end();}
-
-  //! Define const begin and end iterators
+  // Note: only the const version is available because any change in points_
+  // would require a call to computeProperties() to keep the element in a valid state
   const_iterator begin() const {return points_.begin();}
   const_iterator end() const {return points_.end();}
 
 	const Eigen::Matrix<Real,ndim,mydim>& getM_J() const {return M_J_;}
-	const Eigen::Matrix<Real,mydim,ndim>& getM_invJ() const {return M_invJ_;} //in 2.5D this is actually the pseudoinverse!
+	const Eigen::Matrix<Real,mydim,ndim>& getM_invJ() const {return M_invJ_;}
 
-  //! A member that computes the barycentric coordinates.
+  //! A member function that computes the barycentric coordinates of a given Point
 	Eigen::Matrix<Real,mydim+1,1> getBaryCoordinates(const Point<ndim>& point) const;
 
-  //! A member that tests if a Point is located inside an Element.
+  //! A member function that tests if a given Point is located inside the Element
   bool isPointInside(const Point<ndim>& point) const;
 
-  //! A member that verifies which edge/face separates the Triangle/Tetrahedron from a Point.
-  // This function is not implemented for manifold data (we make sure of this at compile time using enable_if)
+  //! A member function that returns beyond which edge/face a given Point lies
+  // This function returns -1 if the point is inside the element
   int getPointDirection(const Point<ndim>&) const;
 
   //! Some members returning the area/volume of the element
+  // Note: all three are available for convenience and compatibility reasons with existing code
   Real getMeasure() const {return element_measure;}
-  Real getArea() const {return this->getMeasure();}
-  Real getVolume() const {return this->getMeasure();}
+  Real getArea() const {return getMeasure();}
+  Real getVolume() const {return getMeasure();}
 
-  //! A member to evaluate functions at a point inside the element
+  //! A member to evaluate a function at a point given the function's coefficients
+  // on the element's basis functions
+  // Note: this function assumes that the point is inside the element!
   Real evaluate_point(const Point<ndim>&, const Eigen::Matrix<Real,NNODES,1>&) const;
   //! A member to evaluate integrals on the element
   Real integrate(const Eigen::Matrix<Real,NNODES,1>&) const;
@@ -213,16 +217,35 @@ public:
   }
 
 private:
-  // Some useful type aliases
-
   // Data members
 	elementPoints points_;
+  // A matrix encoding a linear transformation from barycentric coordinates to
+  // standard coordinates (modulo a translation)
 	Eigen::Matrix<Real,ndim,mydim> M_J_;
-	Eigen::Matrix<Real,mydim,ndim> M_invJ_; //in 2.5D this is actually the pseudoinverse!
+  // A matrix which is the inverse of M_J_
+	Eigen::Matrix<Real,mydim,ndim> M_invJ_;
+  // A Real storing the area/volume of the element
   Real element_measure;
 
+  // A member initializing M_J_, M_invJ_ and element_measure at construction
   void computeProperties();
 };
+
+
+//! Partial template specialization for surface elements
+//!  This class implements a Triangle as an objects composed by three or six nodes, embedded in a 3-dimensional space
+/*!
+ *  The first three nodes represent the vertices, the others the internal nodes,
+ *  following this enumeration: !IMPORTANT! different from Sangalli code!
+ *
+ * 			    3
+ * 			    *
+ * 		     /    \
+ * 		  5 *	   * 4
+ * 		  /	        \
+ * 		 *_____*_____*
+ * 		1	   6	  2
+*/
 
 template <UInt NNODES>
 class Element<NNODES, 2, 3> : public Identifier {
@@ -230,12 +253,9 @@ class Element<NNODES, 2, 3> : public Identifier {
   static_assert(NNODES==3 || NNODES==6,
                  "ERROR! TRYING TO INSTANTIATE SURFACE ELEMENT WITH WRONG NUMBER OF NODES! See mesh_objects.h");
 
-  // Some useful type aliases
-
 public:
 	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  // Some more useful type aliases (these could be useful outside the class
-  // so they are public)
+
   using elementPoints = std::array<Point<3>, NNODES>;
   using iterator = typename elementPoints::iterator;
   using const_iterator = typename elementPoints::const_iterator;
@@ -247,39 +267,38 @@ public:
 	Element(UInt id, const elementPoints& points) :
 					Identifier(id), points_(points) {computeProperties();}
 
-	//! Overloading of the operator [],  taking the Node number and returning a node as a reference to a Point object.
-  // Point<ndim>& operator[](UInt i) {return points_[i];}
+  //! Overloaded subscript operator
+  // Note: only the const version is available because any change in points_
+  // would require a call to computeProperties() to keep the element in a valid state
 	const Point<3>& operator[](UInt i) const {return points_[i];}
 
   //! Define begin and end iterators (this also gives "ranged for" for free)
-  // iterator begin() {return points_.begin();}
-  // iterator end() {return points_.end();}
-
-  //! Define const begin and end iterators
+  // Note: only the const version is available because any change in points_
+  // would require a call to computeProperties() to keep the element in a valid state
   const_iterator begin() const {return points_.begin();}
   const_iterator end() const {return points_.end();}
 
 	const Eigen::Matrix<Real,3,2>& getM_J() const {return M_J_;}
 	const Eigen::Matrix<Real,2,3>& getM_invJ() const {return M_invJ_;} //this is actually the pseudoinverse!
 
-  //! A member that computes the barycentric coordinates.
+  //! A member function that computes the barycentric coordinates of a given point
 	Eigen::Matrix<Real,3,1> getBaryCoordinates(const Point<3>& point) const;
 
-  //! A member that tests if a Point is located inside an Element.
+  //! A member function that tests if a Point is located inside the Element
   bool isPointInside(const Point<3>& point) const;
 
   //! Some members returning the area/volume of the element
+  // Note: all three are available for convenience and compatibility reasons with existing code
   Real getMeasure() const {return element_measure;}
-  Real getArea() const {return this->getMeasure();}
-  Real getVolume() const {return this->getMeasure();}
+  Real getArea() const {return getMeasure();}
+  Real getVolume() const {return getMeasure();}
 
   //! A member to evaluate functions at a point inside the element
   Real evaluate_point(const Point<3>&, const Eigen::Matrix<Real,NNODES,1>&) const;
   //! A member to evaluate integrals on the element
   Real integrate(const Eigen::Matrix<Real,NNODES,1>&) const;
 
-  // This funtion is implemented (and needed) only for manifold elements!
-  // This function projects a 3D point (XYZ coordinates!) onto the element
+  // A member function that projects a 3D point (XYZ coordinates!) onto the element
   // Note: if the projection lies outside the element the function returns
   // the closest point on the boundary of the element instead
   Point<3> computeProjection(const Point<3>&) const;
@@ -296,10 +315,15 @@ public:
 private:
   // Data members
 	elementPoints points_;
+  // A matrix encoding a linear transformation from barycentric coordinates to
+  // standard coordinates (modulo a translation)
 	Eigen::Matrix<Real,3,2> M_J_;
-	Eigen::Matrix<Real,2,3> M_invJ_; //this is actually the pseudoinverse!
+  // A matrix which is the pseudoinverse of M_J_
+	Eigen::Matrix<Real,2,3> M_invJ_;
+  // A Real storing the area/volume of the element
   Real element_measure;
 
+  // A member initializing M_J_, M_invJ_ and element_measure at construction
   void computeProperties();
 
 };
