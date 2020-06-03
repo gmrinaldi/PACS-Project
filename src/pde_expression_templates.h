@@ -7,27 +7,24 @@ class FiniteElement;
 template <UInt ndim, bool is_SV>
 struct Diffusion;
 
-struct Reaction;
-
-
 struct Stiff {
   template<UInt ORDER, UInt mydim, UInt ndim>
-  auto operator() (const FiniteElement<ORDER,mydim,ndim>& fe_, UInt iq) -> decltype(fe_.stiff_impl(iq)) {
-    return fe_.stiff_impl(iq);
+  auto operator() (const FiniteElement<ORDER,mydim,ndim>& fe_, UInt iq, UInt i, UInt j) const -> decltype(fe_.stiff_impl(iq, i, j)) {
+    return fe_.stiff_impl(iq, i, j);
   }
 };
 
 struct Grad {
   template<UInt ORDER, UInt mydim, UInt ndim>
-  auto operator() (const FiniteElement<ORDER,mydim,ndim>& fe_, UInt iq) -> decltype(fe_.grad_impl(iq)) {
-    return fe_.grad_impl(iq);
+  auto operator() (const FiniteElement<ORDER,mydim,ndim>& fe_, UInt iq, UInt i, UInt j) const -> decltype(fe_.grad_impl(iq, i, j)) {
+    return fe_.grad_impl(iq, i, j);
   }
 };
 
 struct Mass {
   template<UInt ORDER, UInt mydim, UInt ndim>
-  auto operator() (const FiniteElement<ORDER,mydim,ndim>& fe_, UInt iq) -> decltype(fe_.mass_impl(iq)) {
-    return fe_.mass_impl(iq);
+  auto operator() (const FiniteElement<ORDER,mydim,ndim>& fe_, UInt iq, UInt i, UInt j) const -> decltype(fe_.mass_impl(iq, i, j)) {
+    return fe_.mass_impl(iq, i, j);
   }
 };
 
@@ -43,8 +40,8 @@ public:
 	 EOExpr(const A& a) : a_(a) {};
 
 	 template<UInt ORDER, UInt mydim, UInt ndim>
- 	 auto operator() (const FiniteElement<ORDER,mydim,ndim>& fe_, UInt iq) -> decltype(a_(fe_, iq)) {
-		 return a_(fe_, iq);
+ 	 auto operator() (const FiniteElement<ORDER,mydim,ndim>& fe_, UInt iq, UInt i, UInt j) const -> decltype(a_(fe_, iq, i, j)) {
+		 return a_(fe_, iq, i, j);
 	 }
 };
 
@@ -66,12 +63,13 @@ public:
    }
 
 	 template<UInt ORDER, UInt mydim, UInt ndim>
- 	 auto operator() (const FiniteElement<ORDER,mydim,ndim>& fe_, UInt iq) -> decltype(a_(fe_, iq)) {
-		 return a_(fe_, iq);
+ 	 auto operator() (const FiniteElement<ORDER,mydim,ndim>& fe_, UInt iq, UInt i, UInt j) const -> decltype(a_(fe_, iq, i, j)) {
+		 return a_(fe_, iq, i, j);
 	 }
 };
 
 
+//composition of two wrappers (operator)
 //composition of two wrappers (operator)
 template<typename A, typename B, typename Op>
 class EOBinOp{
@@ -100,10 +98,10 @@ public:
      * returns a type P variable
 	 */
 		template<UInt ORDER,UInt mydim,UInt ndim>
- 		auto operator () (const FiniteElement<ORDER,mydim,ndim>& fe_, UInt iq) -> decltype(Op::apply(a_(fe_, iq), b_(fe_, iq))) {
-		  return Op::apply(a_(fe_, iq), b_(fe_, iq));
+ 		auto operator () (const FiniteElement<ORDER,mydim,ndim>& fe_, UInt iq, UInt i, UInt j) const -> decltype(Op::apply(a_(fe_, iq, i, j), b_(fe_, iq, i, j))) {
+		  return Op::apply(a_(fe_, iq, i, j), b_(fe_, iq, i, j));
 	  }
-	};
+};
 
 template<class B, class Op>
 class EOBinOp<Real, B, Op>{
@@ -113,8 +111,8 @@ public:
 	EOBinOp(Real a, const B& b) : M_a(a), M_b(b) {};
 
 	template<UInt ORDER, UInt mydim, UInt ndim>
-  auto operator () (const FiniteElement<ORDER,mydim,ndim>& fe_, UInt iq) -> decltype(Op::apply(M_a, M_b(fe_, iq))) {
-		return Op::apply(M_a, M_b(fe_, iq));
+  auto operator () (const FiniteElement<ORDER,mydim,ndim>& fe_, UInt iq, UInt i, UInt j) const -> decltype(Op::apply(M_a, M_b(fe_, iq, i, j))) {
+		return Op::apply(M_a, M_b(fe_, iq, i, j));
 	}
 };
 
@@ -187,10 +185,6 @@ operator * (Real a, const EOExpr<B>& b){
 	  return EOExpr<ExprT> (ExprT(a,b));
 }
 
-EOExpr<const Reaction&> operator * (const Reaction&  c, const EOExpr<Mass>&  mass){
-    typedef EOExpr<const Reaction&> ExprT;
-    return ExprT(c);
-}
 
 
 

@@ -97,7 +97,7 @@ MeshHandler<ORDER,mydim,ndim>::find_closest(const std::vector<Point<3> > &points
 // Naive function for projection onto surface
 template <UInt ORDER, UInt mydim, UInt ndim>
 template <UInt m, UInt n>																//vvvvvvvvv actual return type
-typename std::enable_if<(m<n) && n==ndim && m==mydim, std::vector<Point<3> > >::type
+typename std::enable_if<m!=n && n==ndim && m==mydim, std::vector<Point<3> > >::type
 MeshHandler<ORDER,mydim,ndim>::project(const std::vector<Point<3> > &points) const{
 
 	std::vector<Point<3> > projections;

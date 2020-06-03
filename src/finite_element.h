@@ -78,11 +78,11 @@ protected:
 	// A block matrix PhiDer
 	// Each block iq is made of nabla ^phi(node_iq), i.e. it stores the gradients
 	// of the basis functions evaluated at the quadrature nodes on the reference element
-	Eigen::Matrix<Real, NBASES, mydim*Integrator::NNODES> referencePhiDer;
+	Eigen::Matrix<Real, mydim, NBASES*Integrator::NNODES> referencePhiDer;
 	// A block matrix elementPhiDer
 	// Each block iq is made of nabla phi(node_iq), i.e. it stores the gradients
 	// of the basis functions evaluated at the quadrature nodes on the underlying element
-	Eigen::Matrix<Real, NBASES, ndim*Integrator::NNODES> elementPhiDer;
+	Eigen::Matrix<Real, ndim, NBASES*Integrator::NNODES> elementPhiDer;
 
 	// Members initializing the corresponding matrices at construction
 	void setPhi();
@@ -104,40 +104,24 @@ struct FiniteElement : public FiniteElementData<ORDER, mydim, ndim> {
 
 	FiniteElement()=default;
 
-	// BEWARE: all the following methods intentionally return Eigen expression types
-	// They DO NOT return actual eigen matrices (it is more efficient!)
-	// Note: in C++14 the use of trailing return types in this context is not needed anymore
-
-	// A member returning an expression used in the assembly of the stiffness matrix (isotropic case)
-	auto stiff_impl(UInt iq) const -> decltype(this->elementPhiDer.template block<NBASES,ndim>(0,0) * this->elementPhiDer.template block<NBASES,ndim>(0,0).transpose()) {
-		// compute nabla(phi) x nabla(phi) at node iq
-		return this->elementPhiDer.template block<NBASES,ndim>(0,ndim*iq) * this->elementPhiDer.template block<NBASES,ndim>(0,ndim*iq).transpose();
+	Real stiff_impl(UInt iq, UInt i, UInt j) const {
+		return this->elementPhiDer.col(iq*NBASES+i).dot(this->elementPhiDer.col(iq*NBASES+j));
 	}
 
-	// A member returning an expression used in the assembly of the stiffness matrix (anisotropic case)
-	auto stiff_impl(UInt iq, const Eigen::Matrix<Real, ndim, ndim>& K) const -> decltype(this->elementPhiDer.template block<NBASES,ndim>(0,0) * K * this->elementPhiDer.template block<NBASES,ndim>(0,0).transpose()) {
-		// compute nabla(phi) x K nabmyla(phi) at node iq
-		// Memo: K is symmetric!
-		return this->elementPhiDer.template block<NBASES,ndim>(0,ndim*iq) * K * this->elementPhiDer.template block<NBASES,ndim>(0,ndim*iq).transpose();
+	Real stiff_impl(UInt iq, UInt i, UInt j, const Eigen::Matrix<Real, ndim, ndim>& K) const {
+		return this->elementPhiDer.col(iq*NBASES+i).dot(K * this->elementPhiDer.col(iq*NBASES+j));
 	}
 
-	// A member returning an expression used in the assembly of the mass matrix
-	auto mass_impl(UInt iq) const -> decltype(this->referencePhi.col(0) * this->referencePhi.col(0).transpose()) {
-		// compute phi x phi at node iq
-		return this->referencePhi.col(iq) * this->referencePhi.col(iq).transpose();
+	Real mass_impl(UInt iq, UInt i, UInt j) const {
+		return this->referencePhi(i,iq) * this->referencePhi(j,iq);
 	}
 
-	// A member returning an expression used in the assembly of the gradient matrix
-	// Default choice is b is the unit vector in the x-axis direction
-	auto grad_impl(UInt iq) const -> decltype(this->referencePhi.col(0) * this->elementPhiDer.col(0).transpose()) {
-		// compute phi x nabla(phi) x u_x at node iq
-		return this->referencePhi.col(iq) * this->elementPhiDer.col(ndim*iq).transpose();
+	Real grad_impl(UInt iq, UInt i, UInt j) const {
+		return this->referencePhi(i,iq) * this->elementPhiDer(0,iq*NBASES+j);
 	}
 
-	// A member returning an expression used in the assembly of the gradient matrix
-	auto grad_impl(UInt iq, const Eigen::Matrix<Real, ndim, 1>& b) const -> decltype(this->referencePhi.col(0) * b.transpose() * this->elementPhiDer.template block<NBASES,ndim>(0,0).transpose()) {
-		// compute phi x nabla(phi) x b at node iq
-		return this->referencePhi.col(iq) * b.transpose() * this->elementPhiDer.template block<NBASES,ndim>(0,ndim*iq).transpose();
+	Real grad_impl(UInt iq, UInt i, UInt j, const Eigen::Matrix<Real, ndim, 1>& b) const {
+		return this->referencePhi(i,iq) * b.dot(this->elementPhiDer.col(iq*NBASES+j));
 	}
 
 };

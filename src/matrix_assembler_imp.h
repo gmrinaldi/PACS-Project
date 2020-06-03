@@ -27,17 +27,17 @@ void Assembler::operKernel(EOExpr<A> oper, const MeshHandler<ORDER,mydim,ndim>& 
 		for(int i=0; i<NBASES; ++i)
 			identifiers.push_back(fe[i].id());
 
-		for(int iq = 0; iq < Integrator::NNODES; ++iq)
-				loc_matr.noalias() += oper(fe, iq) * Integrator::WEIGHTS[iq];
-
-		loc_matr *= fe.getMeasure();
-
-		for (int j=0; j<NBASES; ++j)
-			for (int i=0; i<NBASES; ++i)
-				triplets.push_back(coeff(identifiers[i],identifiers[j],loc_matr(i,j)));
+		for(int i=0; i<NBASES; ++i)
+			for(int j=0; j<NBASES; ++j)
+				{
+					Real s=0;
+					for(int iq = 0; iq < Integrator::NNODES; ++iq)
+						s += oper(fe, iq, i, j) * Integrator::WEIGHTS[iq];
+					s *= fe.getMeasure();
+					triplets.push_back(coeff(identifiers[i],identifiers[j],s));
+				}
 
 		identifiers.clear();
-		loc_matr.setZero();
 	}
 
   const UInt nnodes = mesh.num_nodes();
@@ -63,7 +63,7 @@ void Assembler::forcingTerm(const MeshHandler<ORDER,mydim,ndim>& mesh,
 			Real s=0;
 			for(int iq = 0; iq < Integrator::NNODES; ++iq){
 				UInt globalIndex = fe.getGlobalIndex(iq);
-				s +=  fe.getPhi(i,iq)* u[globalIndex] * Integrator::WEIGHTS[iq];
+				s +=  fe.getPhi(i,iq) * u[globalIndex] * Integrator::WEIGHTS[iq];
 			}
 			forcingTerm[fe[i].id()] += s * fe.getMeasure();
 		}

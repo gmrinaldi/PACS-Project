@@ -43,15 +43,15 @@ void FiniteElementData<ORDER, mydim, ndim>::setPhiDer()
 	// .template is needed! See Eigen documentation regarding
 	// the template and typename keywords in C++
 	for(UInt iq=0; iq<Integrator::NNODES; ++iq)
-		referencePhiDer.template block<NBASES, mydim>(0, mydim*iq) = reference_eval_der_point<NBASES,mydim>(Integrator::NODES[iq]);
+		referencePhiDer.template block<mydim, NBASES>(0, NBASES*iq) = reference_eval_der_point<NBASES,mydim>(Integrator::NODES[iq]).transpose();
 }
 
 template <UInt ORDER, UInt mydim, UInt ndim>
 void FiniteElementData<ORDER, mydim, ndim>::setElementPhiDer()
 {
 	// we need J^(-T) nabla( phi)
-	for (auto iq=0; iq < Integrator::NNODES; ++iq)
-			elementPhiDer.template block<NBASES,ndim>(0,ndim*iq).noalias() = referencePhiDer.template block<NBASES,mydim>(0,mydim*iq) * t_.getM_invJ();
+	for (UInt iq=0; iq < Integrator::NNODES; ++iq)
+		elementPhiDer.template block<ndim, NBASES>(0, NBASES*iq).noalias() = t_.getM_invJ().transpose() * referencePhiDer.template block<mydim, NBASES>(0, NBASES*iq);
 }
 
 

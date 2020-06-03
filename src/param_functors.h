@@ -10,13 +10,7 @@
 template <UInt ORDER, UInt mydim, UInt ndim>
 class FiniteElement;
 
-template<typename A>
-class EOExpr;
-
-struct Stiff;
-struct Grad;
-struct Mass;
-
+#include "pde_expression_templates.h"
 
 template <UInt ndim, bool is_SV = false>
 struct Diffusion{
@@ -32,14 +26,15 @@ struct Diffusion{
   #endif
 
   template<UInt ORDER, UInt mydim, UInt WRONG>
-  auto operator() (const FiniteElement<ORDER,mydim,WRONG>& fe_, UInt iq) const -> decltype(fe_.stiff_impl(iq, diffusion_matr())) {
+  auto operator() (const FiniteElement<ORDER,mydim,WRONG>& fe_, UInt iq, UInt i, UInt j) const -> decltype(fe_.stiff_impl(iq, i, j, diffusion_matr())) {
     static_assert(ndim==WRONG, "ERROR! INCOMPATIBLE DIMENSIONS OF DIFFUSION PARAMETER AND FINITE ELEMENT! See param_functors.h");
-    return fe_.stiff_impl(iq, K_);
+    return fe_.stiff_impl(iq, i, j, K_);
   }
 
 private:
   diffusion_matr K_;
 };
+
 
 template <UInt ndim>
 struct Diffusion<ndim, true>{
@@ -59,10 +54,10 @@ struct Diffusion<ndim, true>{
 	#endif
 
   template<UInt ORDER, UInt mydim, UInt WRONG>
-  auto operator() (const FiniteElement<ORDER,mydim,WRONG>& fe_, UInt iq) const -> decltype(fe_.stiff_impl(iq, diffusion_matr())) {
+  auto operator() (const FiniteElement<ORDER,mydim,WRONG>& fe_, UInt iq, UInt i, UInt j) const -> decltype(fe_.stiff_impl(iq, i, j, diffusion_matr())) {
     static_assert(ndim==WRONG, "ERROR! INCOMPATIBLE DIMENSIONS OF DIFFUSION PARAMETER AND FINITE ELEMENT! See param_functors.h");
     UInt globalIndex=fe_.getGlobalIndex(iq);
-    return fe_.stiff_impl(iq, K_[globalIndex]);
+    return fe_.stiff_impl(iq, i, j, K_[globalIndex]);
   }
 
 private:
@@ -84,9 +79,9 @@ struct Advection{
   #endif
 
   template<UInt ORDER, UInt mydim, UInt WRONG>
-  auto operator() (const FiniteElement<ORDER,mydim,WRONG>& fe_, UInt iq) const -> decltype(fe_.grad_impl(iq, advection_vec())) {
+  auto operator() (const FiniteElement<ORDER,mydim,WRONG>& fe_, UInt iq, UInt i, UInt j) const -> decltype(fe_.grad_impl(iq, i, j, advection_vec())) {
     static_assert(ndim==WRONG, "ERROR! INCOMPATIBLE DIMENSIONS OF ADVECTION PARAMETER AND FINITE ELEMENT! See param_functors.h");
-    return fe_.grad_impl(iq, beta_);
+    return fe_.grad_impl(iq, i, j, beta_);
   }
 
   EOExpr<const Advection&> dot(const EOExpr<Grad>& grad) const {
@@ -116,10 +111,10 @@ struct Advection<ndim, true>{
 	#endif
 
   template<UInt ORDER, UInt mydim, UInt WRONG>
-  auto operator() (const FiniteElement<ORDER,mydim,WRONG>& fe_, UInt iq) const -> decltype(fe_.grad_impl(iq, advection_vec())) {
+  auto operator() (const FiniteElement<ORDER,mydim,WRONG>& fe_, UInt iq, UInt i, UInt j) const -> decltype(fe_.grad_impl(iq, i, j, advection_vec())) {
     static_assert(ndim==WRONG, "ERROR! INCOMPATIBLE DIMENSIONS OF ADVECTION PARAMETER AND FINITE ELEMENT! See param_functors.h");
     UInt globalIndex=fe_.getGlobalIndex(iq);
-    return fe_.grad_impl(iq, beta_[globalIndex]);
+    return fe_.grad_impl(iq, i, j, beta_[globalIndex]);
   }
 
   EOExpr<const Advection&> dot(const EOExpr<Grad>& grad) const {
@@ -145,14 +140,23 @@ struct Reaction{
 	#endif
 
   template<UInt ORDER, UInt mydim, UInt ndim>
-  auto operator() (const FiniteElement<ORDER, mydim, ndim>& fe_, UInt iq) const -> decltype(0.*fe_.mass_impl(iq)){
+  auto operator() (const FiniteElement<ORDER, mydim, ndim>& fe_, UInt iq, UInt i, UInt j) const -> decltype(0.*fe_.mass_impl(iq, i, j)){
     UInt globalIndex=fe_.getGlobalIndex(iq);
-    return c_[globalIndex]*fe_.mass_impl(iq);
+    return c_[globalIndex]*fe_.mass_impl(iq, i, j);
   }
+
+  EOExpr<const Reaction&> operator* (const EOExpr<Mass>&  mass) const {
+      typedef EOExpr<const Reaction&> ExprT;
+      return ExprT(*this);
+  }
+
 
 private:
   std::vector<Real> c_;
 };
+
+
+
 
 struct ForcingTerm{
 
