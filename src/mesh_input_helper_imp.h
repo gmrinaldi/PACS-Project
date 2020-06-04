@@ -65,7 +65,7 @@ void simplex_container<mydim>::bin_sort_(const UInt index, std::vector<UInt> &po
     }
   }
 
-  if(index)
+  if(index>0)
     bin_sort_(index-1, positions);
 }
 
@@ -76,11 +76,12 @@ std::vector<UInt> simplex_container<mydim>::compute_offsets(const UInt index, st
     ++counts[simplexes[pos][index]];
 
   UInt offset{0};
-  for (auto &curr : counts){
-    UInt count{curr};
-    curr=offset;
-    offset+=count;
+  for (auto &count : counts){
+    UInt curr{count};
+    count=offset;
+    offset+=curr;
   }
+
 
   std::vector<UInt> offsets;
   offsets.reserve(positions.size());
@@ -115,6 +116,7 @@ typename simplex_container<mydim>::OutputType simplex_container<mydim>::assemble
 
   std::vector<UInt> subsimplexes{assemble_subs()};
   std::vector<bool> submarkers{mark_boundary()};
+  std::vector<int> neighbors{this->compute_neighbors()};
 
   std::vector<bool> nodesmarkers(num_points);
 
@@ -125,7 +127,7 @@ typename simplex_container<mydim>::OutputType simplex_container<mydim>::assemble
         ++i;
     }
 
-  return std::make_tuple(std::move(subsimplexes),std::move(submarkers),std::move(nodesmarkers));
+  return std::make_tuple(std::move(subsimplexes),std::move(submarkers),std::move(nodesmarkers),std::move(neighbors));
 }
 
 template<UInt mydim>

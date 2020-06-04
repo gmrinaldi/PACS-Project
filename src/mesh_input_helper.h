@@ -47,7 +47,7 @@ class simplex_container{
 
 public:
 
-  using OutputType=std::tuple<std::vector<UInt>, std::vector<bool>, std::vector<bool> >;
+  using OutputType=std::tuple<std::vector<UInt>, std::vector<bool>, std::vector<bool>, std::vector<int> >;
   using simplex_t = simplex<mydim>;
   using simplex_container_t = std::vector<simplex_t>;
   using const_iterator = typename simplex_container_t::const_iterator;
@@ -71,8 +71,6 @@ public:
   UInt get_num_points() const {return num_points;}
   UInt get_num_elements() const {return num_elements;}
 
-  std::vector<int> compute_neighbors() const;
-
 private:
   simplex_container_t simplexes;
   std::vector<bool> duplicates;
@@ -90,6 +88,8 @@ private:
   void store_indexes();
   std::vector<bool> mark_boundary() const;
   std::vector<UInt> assemble_subs() const;
+  std::vector<int> compute_neighbors() const;
+
 
 };
 
@@ -116,55 +116,56 @@ std::vector<double> compute_midpoints(const double* const points, const std::vec
   return midpoints;
 }
 
-// std::vector<UInt> split(simplex_container<2> &edge_container, std::vector<UInt> triangles){
-//   std::vector<UInt> extended{order2extend(edge_container)};
-//   triangles.insert(triangles.end(), extended.begin(), extended.end());
-//
-//   const UInt num_edges=triangles.size()/6;
-//   std::vector<UInt> splitted_elements;
-//   splitted_elements.reserve(12*num_edges);
-//
-//   for (auto const j : {0,1,2,3})
-//     for (int i=0; i<num_edges; ++i)
-//       splitted_elements.push_back(triangles[i+j*num_edges]);
-//
-//   for (auto const j : {5,3,4,4})
-//     for (int i=0; i<num_edges; ++i)
-//       splitted_elements.push_back(triangles[i+j*num_edges]);
-//
-//   for (auto const j : {4,5,3,5})
-//     for (int i=0; i<num_edges; ++i)
-//       splitted_elements.push_back(triangles[i+j*num_edges]);
-//
-//   return splitted_elements;
-// }
-//
-// std::vector<UInt> split3D(simplex_container<2> &edge_container, std::vector<UInt> tetrahedrons){
-//   std::vector<UInt> extended{order2extend(edge_container)};
-//   tetrahedrons.insert(tetrahedrons.end(), extended.begin(), extended.end());
-//
-//   const UInt num_edges=tetrahedrons.size()/10;
-//   std::vector<UInt> splitted_elements;
-//   splitted_elements.reserve(32*num_edges);
-//
-//   for (auto const j : {0,4,5,6,4,4,5,5})
-//     for (int i=0; i<num_edges; ++i)
-//       splitted_elements.push_back(tetrahedrons[i+j*num_edges]);
-//
-//   for (auto const j : {4,1,7,9,5,5,6,7})
-//     for (int i=0; i<num_edges; ++i)
-//       splitted_elements.push_back(tetrahedrons[i+j*num_edges]);
-//
-//   for (auto const j : {5,7,2,8,6,7,9,9})
-//     for (int i=0; i<num_edges; ++i)
-//       splitted_elements.push_back(tetrahedrons[i+j*num_edges]);
-//
-//   for (auto const j : {6,9,8,3,9,9,8,8})
-//     for (int i=0; i<num_edges; ++i)
-//       splitted_elements.push_back(tetrahedrons[i+j*num_edges]);
-//
-//   return splitted_elements;
-// }
+std::vector<UInt> split(const std::vector<UInt>& extended_triangles, const int* triangles, const UInt num_triangles){
+
+  std::vector<UInt> splitted_triangles;
+  splitted_triangles.reserve(12*num_triangles);
+
+  for(int i=0; i<3*num_triangles; ++i)
+    splitted_triangles.push_back(triangles[i]+1);
+
+  for (auto const j : {0,2,0,1,1,1,2,0,2})
+    for (int i=0; i<num_triangles; ++i)
+      splitted_triangles.push_back(extended_triangles[i+j*num_triangles]);
+
+  return splitted_triangles;
+}
+
+std::vector<UInt> split3D(const std::vector<UInt>& extended_tetrahedrons, const int* tetrahedrons, const UInt num_tetrahedrons){
+
+  std::vector<UInt> splitted_tetrahedrons;
+  splitted_tetrahedrons.reserve(32*num_tetrahedrons);
+
+  for(int i=0; i<num_tetrahedrons; ++i)
+    splitted_tetrahedrons.push_back(tetrahedrons[i]+1);
+
+  for (auto const j : {0,1,2,0,0,1,1,0})
+    for (int i=0; i<num_tetrahedrons; ++i)
+      splitted_tetrahedrons.push_back(extended_tetrahedrons[i+j*num_tetrahedrons]);
+
+  for(int i=0; i<num_tetrahedrons; ++i)
+    splitted_tetrahedrons.push_back(tetrahedrons[i+num_tetrahedrons]+1);
+
+  for (auto const j : {3,5,1,1,2,3,1,3})
+    for (int i=0; i<num_tetrahedrons; ++i)
+      splitted_tetrahedrons.push_back(extended_tetrahedrons[i+j*num_tetrahedrons]);
+
+  for(int i=0; i<num_tetrahedrons; ++i)
+    splitted_tetrahedrons.push_back(tetrahedrons[i+2*num_tetrahedrons]+1);
+
+  for (auto const j : {4,2,3,5,5,2,5,4})
+    for (int i=0; i<num_tetrahedrons; ++i)
+      splitted_tetrahedrons.push_back(extended_tetrahedrons[i+j*num_tetrahedrons]);
+
+  for(int i=0; i<num_tetrahedrons; ++i)
+    splitted_tetrahedrons.push_back(tetrahedrons[i+3*num_tetrahedrons]+1);
+
+  for (auto const j : {5,5,4,4})
+    for (int i=0; i<num_tetrahedrons; ++i)
+      splitted_tetrahedrons.push_back(extended_tetrahedrons[i+j*num_tetrahedrons]);
+
+  return splitted_tetrahedrons;
+}
 
 
 

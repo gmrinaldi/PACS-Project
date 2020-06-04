@@ -104,7 +104,7 @@ private:
   // Helper function for project (also defined only for manifold data)
   // This function computes the closest nodes to the given points and returns their index
   template <UInt m=mydim, UInt n=ndim>
-  typename std::enable_if<(m<n) && n==ndim && m==mydim, std::vector<UInt> >::type find_closest(const std::vector<Point<3> >&) const;
+  typename std::enable_if<m!=n && n==ndim && m==mydim, UInt>::type find_closest(const Point<3>&) const;
 
 };
 

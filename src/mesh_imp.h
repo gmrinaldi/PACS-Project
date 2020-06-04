@@ -69,29 +69,24 @@ MeshHandler<ORDER,mydim,ndim>::findLocationWalking(const Point<ndim>& point, con
 
 // This function finds the closest mesh nodes to a given set of 3D points.
 template <UInt ORDER, UInt mydim, UInt ndim>
-template <UInt m, UInt n>																//vvvvvvvvv actual return type
-typename std::enable_if<(m<n) && n==ndim && m==mydim, std::vector<UInt> >::type
-MeshHandler<ORDER,mydim,ndim>::find_closest(const std::vector<Point<3> > &points) const{
-
-	std::vector<UInt> closest_ID;
-	closest_ID.reserve(points.size());
+template <UInt m, UInt n>													//vvvvvvvvv actual return type
+typename std::enable_if<m!=n && n==ndim && m==mydim, UInt>::type
+MeshHandler<ORDER,mydim,ndim>::find_closest(const Point<3>& point) const{
 
 	//exclude midpoints in order 2
 	const UInt num_actual_nodes = (ORDER==1) ? num_nodes_ : num_nodes_ - num_sides_;
 
-	for(auto const &point : points){
-		UInt min_pos;
-		Real min_dist{std::numeric_limits<Real>::max()};
-		for(int i=0; i<num_actual_nodes; ++i){
-			Real distance{point.dist2(getPoint(i))};
-			if(distance<min_dist){
-				min_dist=distance;
-				min_pos=i;
-			}
+	UInt min_pos;
+	Real min_dist{std::numeric_limits<Real>::max()};
+	for(int i=0; i<num_actual_nodes; ++i){
+		Real distance{point.dist2(getPoint(i))};
+		if(distance<min_dist){
+			min_dist=distance;
+			min_pos=i;
 		}
-		closest_ID.push_back(min_pos);
 	}
-	return closest_ID;
+
+	return min_pos;
 }
 
 // Naive function for projection onto surface
@@ -119,7 +114,7 @@ MeshHandler<ORDER,mydim,ndim>::project(const std::vector<Point<3> > &points) con
 		Real min_dist{std::numeric_limits<Real>::max()};
 		Point<3> proj_point;
 		for(auto const &i : patch){
-			Element<how_many_nodes(ORDER,2),2,3> current_element{getElement(i)};
+			auto current_element=getElement(i);
 			Point<3> curr_proj{current_element.computeProjection(point)};
 			Real distance{point.dist2(curr_proj)};
 			if(distance<min_dist){

@@ -421,86 +421,43 @@ create.mesh.2.5D<- function(nodes, triangles = NULL, order = 1, nodesattributes 
 
   ## If triangles are not already specified
   if(any(is.null(triangles))){
-    stop("Per il momento in questo caso serve triangles")
+    stop("Missing triangles argument is needed!")
     # triangles = matrix(0,nrow = 0, ncol = 3)
   } else {
     triangles = as.matrix(triangles)
   }
-
-  #Compute neighbors matrix (see Ueng, Sikorski 1996)
-  neighbors <- matrix(-1, nrow = nrow(triangles), ncol = 3)
-
-  #Edge i is in front of node i, i.e. joins the remaining two vertices of the triangle
-  #For instance edge 1 joins vertex 2 and vertex 3
-
-  index_matr <- cbind(rep(seq_len(nrow(triangles)),each=6), c(1,2,1,3,2,3))
-  edge_list <- apply(matrix(triangles[index_matr], ncol = 2, byrow = TRUE), 1, sort)
-  edge_list <- cbind(t(edge_list), rep(seq_len(nrow(triangles)), each = 3), c(3,2,1))
-  edge_list <- split(edge_list, row(edge_list))
-
-  for (level in 2:1){
-    bin_list <- vector(mode = "list", length = nrow(nodes))
-    for (i in 1:length(edge_list))
-      bin_list[[edge_list[[i]][level]]]<-c(bin_list[[edge_list[[i]][level]]],edge_list[i])
-    edge_list <- unlist(bin_list, recursive = FALSE, use.names = FALSE)
-  }
-
-  #Repeated[i] is true if the i-th edge is a duplicate of the i-1-th edge
-  #Caution: <<- is used here to fill out the neighbors matrix (outside of the function scope)
-  # (no problem here because there is no variable called neighbors in the scope)
-  repeated<-mapply(function(X,Y){
-    out<-identical(X[1:2],Y[1:2])
-    if (out){
-      adjacent<-rbind(X[3:4],Y[3:4])
-      neighbors[adjacent]<<-adjacent[2:1,1]
-    }
-    return(out)
-  },edge_list[-length(edge_list)],edge_list[-1])
-  #First edge is not considered (since there is no "0-th edge" set repeated[1]=FALSE)
-  repeated<-c(FALSE,repeated)
-
-  #Remove duplicates and set edges
-  edges <- matrix(unlist(edge_list, use.names = FALSE),ncol=4, byrow = TRUE)[,1:2]
-  edges <- edges[!repeated,]
-
-  #Set edgesmarkers and nodemarkers
-  #Boundary edges are not shared among triangles hence they are never repeated
-  #Meaning that both repeated[i] and repeated[i+1] have to be FALSE
-  #FALSE at the end accounts for the last edge
-  edgesmarkers <- !c(repeated[-1],FALSE)[!repeated]
-  nodesmarkers <- 1:nrow(nodes) %in% edges[edgesmarkers]
-  edgesmarkers <- as.numeric(edgesmarkers)
-  nodesmarkers <- as.numeric(nodesmarkers)
-
+  
+  # Indexes in C++ starts from 0, in R from 1, needed transformations!
+  triangles = triangles - 1
+  
+  ## Set proper type for correct C++ reading
+  storage.mode(triangles) <- "integer"
+  storage.mode(nodes) <- "double"
+  
   out<-NULL
 
   if(order==1 && ncol(triangles) == 3){
-    out <- list(nodes=nodes, nodesmarkers=nodesmarkers, nodesattributes=nodesattributes,
-               triangles=triangles, segments=segments, segmentsmarkers=segmentsmarkers,
-               edges=edges, edgesmarkers=edgesmarkers, neighbors=neighbors, holes=holes, order=order)
+    outCPP <- .Call("CPP_SurfaceMeshHelper", triangles, nodes, PACKAGE = "PACSProject")
+    
+    out <- list(nodes=nodes, nodesmarkers=outCPP[[3]], nodesattributes=nodesattributes,
+               triangles=triangles+1, segments=segments, segmentsmarkers=segmentsmarkers,
+               edges=outCPP[[1]], edgesmarkers=outCPP[[2]], neighbors=outCPP[[4]], holes=holes, order=order)
   }
-  else if(order==2 && ncol(triangles) == 6){ # triangles matrix contains both the true triangles and the midpoints ones
-    out <- list(nodes=nodes, nodesmarkers=nodesmarkers, nodesattributes=nodesattributes,
-               triangles=triangles, segments=segments, segmentsmarkers=segmentsmarkers,
-               edges=edges, edgesmarkers=edgesmarkers, neighbors=neighbors, holes=holes, order=order)
+  else if(order==2 && ncol(triangles) == 6){ 
+    outCPP <- .Call("CPP_SurfaceMeshHelper", triangles[,1:3], nodes, PACKAGE = "PACSProject")
+    
+    out <- list(nodes=nodes, nodesmarkers=outCPP[[3]], nodesattributes=nodesattributes,
+                triangles=triangles+1, segments=segments, segmentsmarkers=segmentsmarkers,
+                edges=outCPP[[1]], edgesmarkers=outCPP[[2]], neighbors=outCPP[[4]], holes=holes, order=order)
   }
   else if(order==2 && ncol(triangles) == 3){
     print("You set order=2 but passed a matrix of triangles with just 3 columns. The midpoints for each edge will be computed.")
 
-    midpoints <- nodes[edges[,1],]/2+nodes[edges[,2],]/2
-    triangle_labels <- matrix(unlist(edge_list, use.names = FALSE),ncol=4, byrow = TRUE)[,3:4]
-    triangle_labels[,2]<-triangle_labels[,2]+3
-    indices<-nrow(nodes)+cumsum(!repeated)
-
-    triangles<-cbind(triangles,matrix(0,nrow=nrow(triangles),ncol=3))
-    triangles[triangle_labels]<-indices
-
-    nodes<-rbind(nodes,midpoints)
-    nodesmarkers<-c(nodesmarkers,rep(0,nrow(midpoints)))
-
-    out <- list(nodes=nodes, nodesmarkers=nodesmarkers, nodesattributes=nodesattributes,
-               triangles=triangles, segments=segments, segmentsmarkers=segmentsmarkers,
-               edges=edges, edgesmarkers=edgesmarkers, neighbors=neighbors, holes=holes, order=order)
+    outCPP <- .Call("CPP_SurfaceMeshOrder2", triangles, nodes, PACKAGE = "PACSProject")
+    
+    out <- list(nodes=rbind(nodes, outCPP[[5]]), nodesmarkers=outCPP[[3]], nodesattributes=nodesattributes,
+                triangles=cbind(triangles+1, outCPP[[6]]), segments=segments, segmentsmarkers=segmentsmarkers,
+                edges=outCPP[[1]], edgesmarkers=outCPP[[2]], neighbors=outputCPP[[4]], holes=holes, order=order)
   }
   else{
     stop("The number of columns of triangles matrix is not consistent with the order parameter")
@@ -586,109 +543,40 @@ create.mesh.3D<- function(nodes, tetrahedrons, order = 1, nodesattributes = NULL
     tetrahedrons <- as.matrix(tetrahedrons)
   }
 
-  #Compute neighbors (see Ueng, Sikorski 1996)
-  neighbors <- matrix(-1, nrow = nrow(tetrahedrons), ncol = 4)
-
-  #Face i is in front of node i, i.e. contains the remaining three vertices of the tetrahedron
-  #For instance face 1 contains vertex 2, vertex 3 and vertex 4
-  index_matr <- cbind(rep(seq_len(nrow(tetrahedrons)),each=12), c(1,2,3,1,2,4,1,3,4,2,3,4))
-  faces_list <- apply(matrix(tetrahedrons[index_matr], ncol = 3, byrow = TRUE), 1, sort)
-  faces_list <- cbind(t(faces_list), rep(seq_len(nrow(tetrahedrons)), each = 4), c(4,3,2,1))
-  faces_list <- split(faces_list, row(faces_list))
-
-  for (level in 3:1){
-    bin_list <- vector(mode = "list", length = nrow(nodes))
-    for (i in 1:length(faces_list))
-      bin_list[[faces_list[[i]][level]]]<-c(bin_list[[faces_list[[i]][level]]],faces_list[i])
-    faces_list <- unlist(bin_list, recursive = FALSE, use.names = FALSE)
-  }
-
-  #Repeated[i] is true if the i-th face is a duplicate of the i-1-th face
-  #Caution: <<- is used here to fill out the neighbors matrix (outside of the function scope)
-  # (no problem here because there is no variable called neighbors in the scope)
-  repeated_faces<-mapply(function(X,Y){
-    out<-identical(X[1:3],Y[1:3])
-    if (out){
-      adjacent<-rbind(X[4:5],Y[4:5])
-      neighbors[adjacent]<<-adjacent[2:1,1]
-    }
-    return(out)
-  },faces_list[-length(faces_list)],faces_list[-1])
-  #First face is not considered (since there is no "0-th face" set repeated[1]=FALSE)
-  repeated_faces<-c(FALSE,repeated_faces)
-
-  #Remove duplicates and set faces
-  faces <- matrix(unlist(faces_list, use.names = FALSE),ncol=5, byrow = TRUE)[,1:3]
-  faces <- faces[!repeated_faces,]
-
-  #Set facesmarkers and nodemarkers
-  facesmarkers <- !c(repeated_faces[-1],FALSE)[!repeated_faces]
-  nodesmarkers <- 1:nrow(nodes) %in% faces[facesmarkers]
-
-  #Same for edges
-  #Edges are numbered in this order: (1,2),(1,3),(1,4),(2,3),(3,4),(2,4)
-  index_matr <- cbind(rep(seq_len(nrow(tetrahedrons)),each=12), c(1,2,1,3,1,4,2,3,2,4,3,4))
-  edge_list <- apply(matrix(tetrahedrons[index_matr], ncol = 2, byrow = TRUE), 1, sort)
-  edge_list <- cbind(t(edge_list), rep(seq_len(nrow(tetrahedrons)), each = 6), c(1,2,3,4,6,5))
-  edge_list <- split(edge_list, row(edge_list))
-
-  for (level in 2:1){
-    bin_list <- vector(mode = "list", length = nrow(nodes))
-    for (i in 1:length(edge_list))
-      bin_list[[edge_list[[i]][level]]]<-c(bin_list[[edge_list[[i]][level]]],edge_list[i])
-    edge_list <- unlist(bin_list, recursive = FALSE, use.names = FALSE)
-  }
-
-  repeated_edges<-mapply(function(X,Y){
-    identical(X[1:2],Y[1:2])
-  },edge_list[-length(edge_list)],edge_list[-1])
-  repeated_edges<-c(FALSE,repeated_edges)
-
-  #Remove duplicates and set edges
-  edges <- matrix(unlist(edge_list, use.names = FALSE),ncol=4, byrow = TRUE)[,1:2]
-  edges <- edges[!repeated_edges,]
-
-  #Look for boundary edges (check which edges connect boundary nodes)
-  edgesmarkers <- matrix(edges %in% (1:nrow(nodes))[nodesmarkers], ncol=2)
-  edgesmarkers <- edgesmarkers[,1] & edgesmarkers[,2]
-
-  edgesmarkers <- as.numeric(edgesmarkers)
-  facesmarkers <- as.numeric(facesmarkers)
-  nodesmarkers <- as.numeric(nodesmarkers)
-
+  # Indexes in C++ starts from 0, in R from 1, needed transformations!
+  tetrahedrons = tetrahedrons - 1
+  
+  ## Set proper type for correct C++ reading
+  storage.mode(tetrahedrons) <- "integer"
+  storage.mode(nodes) <- "double"
+  
   out<-NULL
 
   if(order==1 && ncol(tetrahedrons) == 4){
-    out <- list(nodes=nodes, nodesmarkers=nodesmarkers, nodesattributes=nodesattributes,
-                tetrahedrons=tetrahedrons, segments=segments, segmentsmarkers=segmentsmarkers,
-                faces=faces, facesmarkers=facesmarkers, neighbors=neighbors,
-                edges=edges, edgesmarkers=edgesmarkers,  holes=holes, order=order)
+    outCPP <- .Call("CPP_VolumeMeshHelper", tetrahedrons, nodes, PACKAGE = "PACSProject")
+    
+    out <- list(nodes=nodes, nodesmarkers=outCPP[[3]], nodesattributes=nodesattributes,
+                tetrahedrons=tetrahedrons+1, segments=segments, segmentsmarkers=segmentsmarkers,
+                faces=outCPP[[1]], facesmarkers=outCPP[[2]], neighbors=outCPP[[4]],
+                holes=holes, order=order)
   }
-  else if(order==2 && ncol(tetrahedrons) == 10){ # tetrahedrons matrix contains both the true tetrahedrons and the midpoints ones
-    out <- list(nodes=nodes, nodesmarkers=nodesmarkers, nodesattributes=nodesattributes,
-                tetrahedrons=tetrahedrons, segments=segments, segmentsmarkers=segmentsmarkers,
-                faces=faces, facesmarkers=facesmarkers, neighbors=neighbors,
-                edges=edges, edgesmarkers=edgesmarkers,  holes=holes, order=order)
+  else if(order==2 && ncol(tetrahedrons) == 10){
+    outCPP <- .Call("CPP_VolumeMeshHelper", tetrahedrons[,1:4], nodes, PACKAGE = "PACSProject")
+    
+    out <- list(nodes=nodes, nodesmarkers=outCPP[[3]], nodesattributes=nodesattributes,
+                tetrahedrons=tetrahedrons+1, segments=segments, segmentsmarkers=segmentsmarkers,
+                faces=outCPP[[1]], facesmarkers=outCPP[[2]], neighbors=outCPP[[4]],
+                holes=holes, order=order)
   }
   else if(order==2 && ncol(tetrahedrons) == 4){
     print("You set order=2 but passed a matrix of tetrahedrons with just 4 columns. The midpoints for each edge will be computed.")
 
-    midpoints <- nodes[edges[,1],]/2+nodes[edges[,2],]/2
-
-    tetrahedron_labels <- matrix(unlist(edge_list, use.names = FALSE),ncol=4, byrow = TRUE)[,3:4]
-    tetrahedron_labels[,2] <- tetrahedron_labels[,2]+4
-    indices<-nrow(nodes)+cumsum(!repeated_edges)
-
-    tetrahedrons<-cbind(tetrahedrons,matrix(0,nrow=nrow(tetrahedrons),ncol=6))
-    tetrahedrons[tetrahedron_labels]<-indices
-
-    nodes<-rbind(nodes,midpoints)
-    nodesmarkers<-c(nodesmarkers,rep(0,nrow(midpoints)))
-
-    out <- list(nodes=nodes, nodesmarkers=nodesmarkers, nodesattributes=nodesattributes,
-               tetrahedrons=tetrahedrons, segments=segments, segmentsmarkers=segmentsmarkers,
-               faces=faces, facesmarkers=facesmarkers, neighbors=neighbors,
-               edges=edges, edgesmarkers=edgesmarkers,  holes=holes, order=order)
+    outCPP <- .Call("CPP_VolumeMeshOrder2", tetrahedrons, nodes, PACKAGE = "PACSProject")
+    
+    out <- list(nodes=rbind(nodes, outCPP[[5]]), nodesmarkers=outCPP[[3]], nodesattributes=nodesattributes,
+               tetrahedrons=cbind(tetrahedrons+1, outCPP[[6]]), segments=segments, segmentsmarkers=segmentsmarkers,
+               faces=outCPP[[1]], facesmarkers=outCPP[[2]], neighbors=outputCPP[[4]],
+               holes=holes, order=order)
   }
   else{
     stop("The number of columns of tetrahedrons matrix is not consistent with the order parameter")
